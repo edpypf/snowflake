@@ -1,0 +1,134 @@
+return list of first day of the month between two dates
+function dateRange(startDate, endDate) {
+  var start      = startDate.split('-');
+  var end        = endDate.split('-');
+  var startYear  = parseInt(start[0]);
+  var endYear    = parseInt(end[0]);
+  var dates      = [];
+
+  for(var i = startYear; i <= endYear; i++) {
+    var endMonth = i != endYear ? 11 : parseInt(end[1]) - 1;
+    var startMon = i === startYear ? parseInt(start[1])-1 : 0;
+    for(var j = startMon; j <= endMonth; j = j > 12 ? j % 12 || 11 : j+1) {
+      var month = j+1;
+      var displayMonth = month < 10 ? '0'+month : month;
+      dates.push([i, displayMonth, '01'].join('-'));
+    }
+  }
+  return dates;
+} 
+console.log(dateRange('2013-10-31', '2014-06-01'))  
+
+---- return list of month yyyymm
+function dateRange(STARTDATE, ENDDATE) {
+  var smonth       = STARTDATE.substring(4,6);
+  var sday         = STARTDATE.substring(6,8);
+
+  var emonth       = ENDDATE.substring(4,6);
+  var eday         = ENDDATE.substring(6,8);   
+  var startYear  = parseInt(STARTDATE.substring(0,4));
+  var endYear        = parseInt(ENDDATE.substring(0,4));  
+  var YYYYMM      = [];
+
+  for(var i = startYear; i <= endYear; i++) {
+    var endMonth = i != endYear ? 11 : parseInt(emonth) - 1;
+    var startMon = i === startYear ? parseInt(smonth)-1 : 0;
+    for(var j = startMon; j <= endMonth; j = j > 12 ? j % 12 || 11 : j+1) {
+      var month = j+1;
+      var displayMonth = month < 10 ? '0'+month : month;
+      YYYYMM.push(parseInt([i, displayMonth].join('')));
+    }
+  }
+  return YYYYMM;
+} 
+console.log(dateRange('20131031', '20140601'))  
+
+
+---- stored procedure to call in loop
+CREATE OR REPLACE PROCEDURE usr_a_yu.SPtstone(P_BATCHLOGID FLOAT, P_LASTBATCHLOGID FLOAT, P_STARTDATE FLOAT, P_ENDDATE FLOAT,P_OPTION FLOAT, P_DEBUG FLOAT)
+	RETURNS VARCHAR
+	LANGUAGE JAVASCRIPT
+    EXECUTE AS CALLER
+	AS
+	$$
+    //*CALL TRANSFORM.SPCOBRAND_BENEFITFEE_RECONCILLATION_INTERNAL(0, -1, 20210101, 29991231,0, 0)
+    //**************************************************************************************
+     
+    var STARTDATE = P_STARTDATE.toString().trim();
+    var ENDDATE = P_ENDDATE.toString().trim();
+    var YYYYMM       = [];
+    
+    function dateRange(STARTDATE, ENDDATE) {
+      var currentyr    = new Date().getFullYear().toString();
+      var smonth       = STARTDATE.substring(4,6);
+      var sday         = STARTDATE.substring(6,8);
+      var emonth       = ENDDATE.substring(4,6);
+      var eday         = ENDDATE.substring(6,8);   
+      var startYear    = parseInt(STARTDATE.substring(0,4));
+      var endYear;  
+      var YYYYMM       = [];
+          
+      if (ENDDATE.substring(0,4)>currentyr)
+          {
+            endYear=parseInt(currentyr)
+          } 
+      else{
+            endYear=parseInt(ENDDATE.substring(0,4))
+          };
+
+      for(var i = startYear; i <= endYear; i++) {
+        var endMonth = i != endYear ? 11 : parseInt(emonth) - 1;
+        var startMon = i === startYear ? parseInt(smonth)-1 : 0;
+        for(var j = startMon; j <= endMonth; j = j > 12 ? j % 12 || 11 : j+1) {
+          var month = j+1;
+          var displayMonth = month < 10 ? '0'+month : month;
+          YYYYMM.push(parseInt([i, displayMonth].join('')));
+        }
+      }
+      return YYYYMM;
+    } 
+         
+    var sqlTextOne = `insert into usr_a_yu.test SELECT :1`;
+
+	if(P_DEBUG === 1){
+    	return sqlTextOne;
+    } else {
+        YYYYMM=dateRange(STARTDATE,ENDDATE)
+        for(var j = 0; j < YYYYMM.length; j++) {
+        	try {
+          		executeDynSQL(sqlTextOne);
+        	} catch(err) {
+            	throw 'Encountered error in executing query #' + i + ' \n. ' + err.message;
+        	}
+      	}
+
+      	return 'TRANSFORM.COBRAND_BENEFITFEE_RECONCILLATION_INTERNAL successfully loaded.';   	
+    }
+
+    // helper function to execute sql
+    function executeDynSQL(p_dynSQL) {
+      	queryList = p_dynSQL.split(';');
+      	for(var i = 0; i < queryList.length; i++) {
+        	try {
+          		var sqlStmt = snowflake.createStatement({sqlText: queryList[i], binds: [YYYYMM[j]]});
+          		sqlStmt.execute();
+        	} catch(err) {
+            	throw 'Encountered error in executing query #' + i + ' \n. ' + err.message;
+        	}
+      	}
+    }
+	$$;
+    
+    
+    
+    CALL usr_a_yu.SPtstone(0, -1, 20201101, 20291231,0, 0);
+    
+    
+    select * from usr_a_yu.test;
+    truncate table usr_a_yu.test
+    
+    
+    create or replace TABLE usr_a_yu.test
+(
+	YYYYMM int
+);

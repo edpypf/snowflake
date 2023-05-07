@@ -1,0 +1,25 @@
+ADF UAT(RITM0245518):
+New Snowflake Connection-------------------------------
+keyVault: https://acaze2-it-uat-akv-kilo01.vault.azure.net/
+new Secret Name: azure-infofactory-snf-SVC-ETLSERVICE-UAT-TeradataMigratconnstring
+connection string: jdbc:snowflake://aircanadaprodedw.east-us-2.azure.snowflakecomputing.com/?user=SVC_ETLSERVICE_UAT&db=TERADATA_MIG_UAT&warehouse=TERADATA_UAT_ETL_WH&role=ETLSERVICE_UAT&PWD=*************
+## password will be shared in email
+
+New Folder Creation-------------------------------
+keyVault: https://acaze2-it-uat-akv-kilo01.vault.azure.net/
+existing Secret Name: azure-snowblobstage-sas-url
+## please find the container name in above secret, it is like "https://acaze2it???kilosnow.blob.core.windows.net/"
+new folder name: adfstagedcommandtempdata
+
+ADF REH:
+New Snowflake Connection-------------------------------
+keyVault: https://acaze2-it-reh-kv-adf.vault.azure.net/
+new Secret Name: azure-infofactory-snf-SVC-ETLSERVICE-PROD-TeradataMigratconnstring
+connection string: jdbc:snowflake://aircanadaprod.east-us-2.azure.snowflakecomputing.com/?user=SVC_ETLSERVICE_PROD&db=TERADATA_MIG&warehouse=TERADATA_PROD_ETL_WH&role=ETLSERVICE_PROD&PWD=**********************w
+## password will be shared in email
+
+New Folder Creation-------------------------------
+keyVault: https://ahttps://acaze2-it-reh-kv-adf.vault.azure.net/
+existing Secret Name: azure-snowblobstage-sas-url
+## please find the container name in above secret, it is like "https://acaze2it???kilosnow.blob.core.windows.net/"
+new folder name: adfstagedcommandtempdata

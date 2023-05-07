@@ -1,0 +1,89 @@
+CREATE OR REPLACE PROCEDURE "BIF_PARSING_BATCH"("P_DEBUG" FLOAT, "BATCH_SIZE" FLOAT)
+RETURNS VARCHAR(16777216)
+LANGUAGE JAVASCRIPT
+EXECUTE AS CALLER
+AS 
+$$
+    //**************************************************************************************
+    //* Purpose:    This stored procedure will process LND_BIF
+    //*
+    //*
+    //* Date          Author              Desc
+    //**************************************************************************************
+	//* 2022-08-26    Vincent             Performance Test of SnowProcedure String Process
+    //************************************************************************************** 
+    //*
+    //*Sample Execution
+    //*CALL LND.BIF_PARSING
+    //**************************************************************************************
+
+    var Rset = [];
+    
+    var sqlTextOne_read = `select BIF_MESSAGE as mess from LND.LND_BIF limit `+ BATCH_SIZE + ` offset ` + BATCH_SIZE;
+    var sqlTextOne_write = `insert into SANDBOX.USR_VINCENT_A_YU.TEST_BIF
+        (TAG, MSG)
+        SELECT :1, :2`;
+
+    // Function to Parse the Message
+    function get_parsing_output(msg) {
+      var v_TAG = msg.split("\n")[0];
+      var v_MSG = msg;
+      return [v_TAG, v_MSG];
+    }
+    
+    // Main Program
+    if(P_DEBUG === 1){
+    	return sqlTextOne_read;
+    } else {
+            try {
+                  // read from source table
+                  var stmt = snowflake.createStatement({sqlText: sqlTextOne_read});
+                  var rs = stmt.execute();
+
+                  while(rs.next())
+                  {
+                     v_TAG =  get_parsing_output(rs.getColumnValue(1))[0];
+                     v_MSG =  get_parsing_output(rs.getColumnValue(1))[1];
+                     Rset.push([v_TAG, v_MSG])
+                  } 
+                  // write into target table SANDBOX.USR_VINCENT_A_YU.TEST_BIF                  
+                  try {
+                        // Generates (?,?,?) if there are 3 cols per row
+                        var row_bind = "(" + ",".join(Array(Rset[0].length).fill("?")) + ")"; 
+                        return row_bind;
+                        
+//                        while (Rset.length > 0) {
+//
+//                          // Consume upto 100 rows at a time
+//                          var dataChunk = Rset.splice(0, 100);
+//
+//                          // Generate (?,?,?),(?,?,?),[...] upto a 100 times
+//                          var params = Array(dataChunk.length).fill(row_bind).join(",");
+//
+//                          // Place the bind params into the query
+//                          var statement = `INSERT INTO SANDBOX.USR_VINCENT_A_YU.TEST_BIF (TAG, MSG) ` + params;
+
+//                          // Prepare a statement with a flat stream of row/col data sent along
+//                          var stmt = snowflake.createStatement({
+//                            sqlText: statement,
+//                            binds: dataChunk.flat()});
+//                          return stmt.getSqlText();
+//                        }
+                     } catch(err) {
+                        throw 'Encountered error in writing into table' + v_MSG + 'error is ' + err.message;
+                     }                         
+                } catch(err) {
+                          throw 'Encountered error in executing sqlTextOne.' + err.message;
+                       }
+      	}
+
+      	return 'BIF Run successfully loaded.';
+$$;
+
+//truncate table SANDBOX.USR_VINCENT_A_YU.TEST_BIF
+call  lnd.BIF_PARSING_BATCH(0,100);
+//select * from SANDBOX.USR_VINCENT_A_YU.TEST_BIF
+
+
+ 
+

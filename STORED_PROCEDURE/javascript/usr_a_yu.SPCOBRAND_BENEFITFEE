@@ -1,0 +1,188 @@
+CREATE OR REPLACE PROCEDURE TRANSFORM.SPCOBRAND_BENEFITFEE_RECONCILLATION_INTERNAL(P_BATCHLOGID FLOAT, P_LASTBATCHLOGID FLOAT, P_STARTDATE FLOAT, P_ENDDATE FLOAT,P_OPTION FLOAT, P_DEBUG FLOAT)
+	RETURNS VARCHAR
+	LANGUAGE JAVASCRIPT
+    EXECUTE AS CALLER
+	AS
+	$$
+    //**************************************************************************************
+    //* Purpose:    This stored procedure will load TRANSFORM.COBRAND_BENEFITFEE_RECONCILLATION_INTERNAL
+    //*
+    //* Notes:      This stored procedure is called from ADF pipeline
+    //*
+    //* Parameters: P_BATCHLOGID: is the batch ID generated in job manager
+    //*             P_LASTBATCHLOGID: is the last batch ID generated in job manager
+    //*             P_STARTDATE: is the batch ID generated in job manager
+    //*             P_ENDDATE: is the batch ID generated in job manager
+    //*             P_OPTION: is the OPTION parameter
+    //*             P_DEBUG: if 1, then returns query. Else, execute
+    //*
+    //* Date          Author              Desc
+    //**************************************************************************************
+	//* 2021-09-10    VINCENT           Initial version for internal + snowflake migration
+    //************************************************************************************** 
+    //*
+    //*Sample Execution
+    //*CALL TRANSFORM.SPCOBRAND_BENEFITFEE_RECONCILLATION_INTERNAL(0, -1, 20210101, 29991231,0, 0)
+    //*WHEN PASS PARAMETER STARTDATE AND ENDDATE 20201102,20210103, RETURN DATA FOR 202011, 202012,202101
+    //*WHEN PASS PARAMETER STARTDATE AND ENDDATE 20210402,20210503, RETURN DATA FOR 202104, 202105
+    //*IF CURRENT DATE IS 2021-09-05, RUN ADF WITH DEFAULT, PASS PARAMETER STARTDATE AND ENDDATE 20210905,29991231, RETURN DATA FOR 202108  
+    //**************************************************************************************
+
+    var sqlTextOne = `     
+    INSERT INTO TRANSFORM.COBRAND_BENEFITFEE_INTERNAL
+    (    YYYYMM
+        ,FIPARTNER
+        ,CARDACCOUNT
+        ,CARDACCOUNTOPENDATE
+        ,CARDACCOUNTCLOSEDATE
+        ,ANNIVERSARYDATE
+        ,CARDACCOUNTUPGDOWNGDATE
+        ,PREVIOUSCARDTYPE
+        ,NEWCARDTYPE
+        ,PRORATEDCANCELANNUALFEE
+        ,PRORATEUPGDOWNGANNUALFEE
+        ,CARDUSERTYPEIND
+        ,UPDATETYPE
+    )
+
+    WITH EXTRACTCARD AS
+         (
+            SELECT :1 AS YYYYMM,
+                ARPRTNR.ARPARTNERNAME AS FIPARTNER,
+                CARDACCOUNTID AS CARDACCOUNT, 
+                OPENDATE.FULLDATE AS CARDACCOUNTOPENDATE,
+                CLOSEDATE.FULLDATE AS CARDACCOUNTCLOSEDATE,
+                CASE WHEN YEAR(CURRENT_DATE) - YEAR(OPENDATE.FULLDATE) > 0 THEN 
+                (CASE WHEN dateadd(year,YEAR(CURRENT_DATE) - YEAR(OPENDATE.FULLDATE), OPENDATE.FULLDATE) > CURRENT_DATE 
+                    THEN dateadd(year,YEAR(CURRENT_DATE) - YEAR(OPENDATE.FULLDATE), OPENDATE.FULLDATE)
+                    WHEN dateadd(year,YEAR(CURRENT_DATE) - YEAR(OPENDATE.FULLDATE), OPENDATE.FULLDATE) < CURRENT_DATE 
+                        AND CLOSEDATE.FULLDATE > dateadd(year,YEAR(CURRENT_DATE) - YEAR(OPENDATE.FULLDATE), OPENDATE.FULLDATE)
+                        THEN dateadd(year, 1, dateadd(year,YEAR(CURRENT_DATE) - YEAR(OPENDATE.FULLDATE), OPENDATE.FULLDATE))
+                ELSE dateadd(year,YEAR(CURRENT_DATE) - YEAR(OPENDATE.FULLDATE), OPENDATE.FULLDATE) END)
+                ELSE dateadd(year, 1, dateadd(year,YEAR(CURRENT_DATE) - YEAR(OPENDATE.FULLDATE), OPENDATE.FULLDATE))  END AS ANNIVERSARYDATE,
+                CASE WHEN FACT.CARDMOVEMENTTYPESID <> -1 THEN OPENDATE.FULLDATE   ELSE NULL END AS CARDACCOUNTUPGDOWNGDATE,
+                CASE WHEN PREVIOUSCARDPRODUCTSID <> -1 THEN PREVPROD.PRODUCTCODE ELSE NULL END AS PREVIOUSCARDTYPE,
+                FACT.PRODUCTCODE AS NEWCARDTYPE,
+                TIER.ANNUALFEE AS ANNUALFEE,
+                USERTYP.USERTYPECODE AS CARDUSERTYPEIND,
+                FACT.ACTIVITYUPDATETIMESTAMP AS UPDATETIMESTAMP,
+                CARDMOVEMENTTYPESID as CARDMOVEMENTTYPESID
+            FROM 
+                EDW.FACT_COBRANDCARDACTIVITY FACT
+                LEFT JOIN EDW.DIM_DATE OPENDATE ON OPENDATE.DATESID = FACT.BankCardOpenDateSID
+                LEFT JOIN EDW.DIM_DATE CLOSEDATE ON CLOSEDATE.DATESID = FACT.BankCardClosedDateSID
+                LEFT JOIN EDW.DIM_PRODUCT PROD ON PROD.PRODUCTSID = FACT.PRODUCTSID
+                LEFT JOIN EDW.DIM_PRODUCT PREVPROD ON PREVPROD.PRODUCTSID = FACT.PREVIOUSCARDPRODUCTSID
+                LEFT JOIN EDW.DIM_CARDUSERTYPE USERTYP ON USERTYP.USERTYPECODESID = FACT.CARDUSERTYPESID
+                LEFT JOIN EDW.DIM_COBRANDPRODUCTTIER TIER ON TIER.COBRANDPRODUCTTIERSID = FACT.COBRANDPRODUCTTIERSID
+                LEFT JOIN EDW.DIM_ARPARTNER ARPRTNR ON ARPRTNR.ARPARTNERSID = FACT.ARPARTNERSID
+            WHERE (YEAR(CLOSEDATE.FULLDATE)*100+MONTH(CLOSEDATE.FULLDATE)=:1) 
+            OR
+                  (MONTH(OPENDATE.FULLDATE)=(:1-round(:1/100)*100) AND YEAR(OPENDATE.FULLDATE)<= round(:1/100))
+            QUALIFY ROW_NUMBER() OVER (PARTITION BY FACT.CARDACCOUNTID,FACT.PRODUCTCODE ORDER BY BANKCARDCLOSEDDATESID DESC,BANKCARDOPENDATESID DESC ) =1
+         ),
+            
+        EXTRACTCARDANNUALFEE AS
+        (
+            SELECT YYYYMM 
+                ,FIPARTNER
+                ,CARDACCOUNT
+                ,CARDACCOUNTOPENDATE
+                ,CARDACCOUNTCLOSEDATE
+                ,UPDATETIMESTAMP
+                ,ANNIVERSARYDATE
+                ,CARDACCOUNTUPGDOWNGDATE
+                ,PREVIOUSCARDTYPE
+                ,NEWCARDTYPE
+                ,CASE WHEN CARDACCOUNTCLOSEDATE <> '2999-12-31' AND PREVIOUSCARDTYPE IS NULL THEN (ANNUALFEE - (((CAST(ANNIVERSARYDATE AS DATE) - CARDACCOUNTCLOSEDATE)/365) * ANNUALFEE))
+                        WHEN CARDACCOUNTCLOSEDATE ='2999-12-31' THEN ANNUALFEE
+                    ELSE NULL END AS PRORATEDCANCELANNUALFEE
+                ,CASE WHEN CARDACCOUNTCLOSEDATE <> '2999-12-31' AND CARDMOVEMENTTYPESID <> -1 THEN (ANNUALFEE - (((CAST(ANNIVERSARYDATE AS DATE) - CARDACCOUNTCLOSEDATE)/365) * ANNUALFEE)) ELSE NULL END AS PRORATEUPGDOWNGANNUALFEE
+                ,CARDUSERTYPEIND
+            FROM EXTRACTCARD
+        ) 
+
+        SELECT YYYYMM 
+            ,FIPARTNER
+            ,CARDACCOUNT
+            ,CARDACCOUNTOPENDATE
+            ,CARDACCOUNTCLOSEDATE
+            ,ANNIVERSARYDATE
+            ,CARDACCOUNTUPGDOWNGDATE
+            ,PREVIOUSCARDTYPE
+            ,NEWCARDTYPE
+            ,PRORATEDCANCELANNUALFEE
+            ,PRORATEUPGDOWNGANNUALFEE
+            ,CARDUSERTYPEIND 
+            ,'NewInsertCount' AS UPDATETYPE
+        FROM EXTRACTCARDANNUALFEE
+        ORDER BY CARDACCOUNT`;
+
+
+    // Initialize the Variables      
+    var STARTDATE    = P_STARTDATE.toString().trim();
+    var ENDDATE      = P_ENDDATE.toString().trim();
+    var YYYYMM       = [];
+    var currentyr    = new Date().getFullYear().toString();
+    var currentmon   = new Date().getMonth().toString(); 
+    var previousmonyr= new Date(currentyr, currentmon, 0).getFullYear();
+    var previousmon  = new Date(currentyr, currentmon, 0).getMonth();
+    
+    // Function to return list of YYYYMM interger for output of each months between STARTDATE and ENDDATE 
+    function dateRange(STARTDATE, ENDDATE) {
+      var sday         = STARTDATE.substring(6,8);
+      var eday         = ENDDATE.substring(6,8);   
+      var startYear    = parseInt(STARTDATE.substring(0,4));
+      var smonth       = parseInt(STARTDATE.substring(4,6));  
+      var endYear      = parseInt(ENDDATE.substring(0,4));  
+      var emonth       = parseInt(ENDDATE.substring(4,6));
+      var YYYYMM       = [];
+
+      // check if paraYearMonth >= currentYrMon, then use previous month      
+      if (parseInt(previousmonyr)*100+parseInt(previousmon)<=startYear*100+smonth)
+        {
+          startYear = currentyr;
+          smonth  = currentmon;
+        }
+      if (parseInt(previousmonyr)*100+parseInt(previousmon)<=endYear*100+emonth)
+        {
+          endYear = currentyr;
+          emonth  = currentmon;
+        }
+
+      for(var i = startYear; i <= endYear; i++) {
+          var endMonth = i != endYear ? 11 : emonth-1;
+          var startMon = i === startYear ? smonth-1 : 0;
+          for(var j = startMon; j <= endMonth; j = j > 12 ? j % 12 || 11 : j+1) {
+            var month = j+1;
+            var displayMonth = month < 10 ? '0'+month : month;
+            YYYYMM.push(parseInt([i, displayMonth].join('')));
+          }
+        }
+        return YYYYMM;
+      }  
+          
+	if(P_DEBUG === 1){
+    	return sqlTextOne;
+    } else {
+            try {
+          		  var sqlStmttrun = snowflake.createStatement({sqlText: `TRUNCATE TABLE TRANSFORM.COBRAND_BENEFITFEE_INTERNAL`});
+          		  sqlStmttrun.execute();
+        	} catch(err) {
+            	throw 'Encountered error in truncating target table' + err.message;
+        	}
+        // Get list of YYYYMM and loop it to call length(YYYYMM) times query.  
+        YYYYMM=dateRange(STARTDATE,ENDDATE)
+        for(var k = 0; k < YYYYMM.length; k++) {
+        	try {
+          		  var sqlStmt = snowflake.createStatement({sqlText: sqlTextOne, binds: [YYYYMM[k]]});
+          		  sqlStmt.execute();
+        	} catch(err) {
+            	throw 'Encountered error in executing query #' + k + ' \n. ' + err.message;
+        	}
+      	}
+
+      	return 'TRANSFORM.COBRAND_BENEFITFEE_INTERNAL successfully loaded.';   	
+    }
+$$;
+	

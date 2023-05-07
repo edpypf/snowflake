@@ -1,0 +1,661 @@
+-- snowflake Query History
+
+select $1 as tkt, $1:eventhub_enqued_tmsp as DT from @lnd.SILVERSTRM2_STAGE/tkt/daily/data/3_0_0/sys_ingest_date=20220415/part-00004-91abe402-419b-43c9-8671-03fabc5fbd15.c000.snappy.parquet limit 30
+
+select $1 as tkt_corr from @lnd.SILVERSTRM2_STAGE/tkt_corr/daily/data/3_0_0/sys_ingest_date=20220415/part-00000-fc7cf1cd-5bd0-40e3-b283-9a189e73d59f.c000.snappy.parquet
+
+select  $1:processedTicket:primaryDocumentNumber as id,COUNT(1) AS CNT -- MAX($1) as tkt, $1:eventhub_enqued_tmsp as DT,
+from @lnd.SILVERSTRM2_STAGE/tkt/daily/data/3_0_0/sys_ingest_date=20220415/part-00004-91abe402-419b-43c9-8671-03fabc5fbd15.c000.snappy.parquet
+GROUP BY id  HAVING COUNT(1)>1 limit 5;
+
+select $1 as tkt, $1:eventhub_enqued_tmsp as DT, $1:processedTicket:primaryDocumentNumber as id from @lnd.SILVERSTRM2_STAGE/tkt/daily/data/3_0_0/sys_ingest_date=20220415/part-00004-91abe402-419b-43c9-8671-03fabc5fbd15.c000.snappy.parquet
+where id='0142148477589' --DT between '20220415145800000' and '20220415145815000'
+limit 10
+select *
+from @lnd.SILVERSTRM2_STAGE/pnr_corr/daily/data/1_11_0/sys_ingest_date=20220415/part-00000-739328a4-042a-442c-aa0a-39fdbe9d2433.c000.snappy.parquet limit 5)
+create schema svr_val
+select $1 from @lnd.SILVERSTRM2_STAGE/pnr_corr/daily/data/1_11_0/sys_ingest_date=20220415/part-00004-25a78751-3084-4b66-b092-a0df211abce2.c000.snappy.parquet limit 8
+
+select $1:processedPnr:id::string as PNR_ID,$1:processedPnr:version::string as PNR_VERSION,count(1) as Dcount from @lnd.SILVERSTRM2_STAGE/pnr_corr/daily/data/1_11_0/sys_ingest_date=20220415/part-00004-25a78751-3084-4b66-b092-a0df211abce2.c000.snappy.parquet group by pnr_id, pnr_version having Dcount>1
+
+select  $1   as pnr_corr 
+from @lnd.SILVERSTRM2_STAGE/pnr_corr/daily/data/1_11_0/sys_ingest_date=20220415/part-00000-739328a4-042a-442c-aa0a-39fdbe9d2433.c000.snappy.parquet limit 5
+
+select  split_part($1:pnrCorrelations,'"',2)  as type, max($1) from @lnd.SILVERSTRM2_STAGE/pnr_corr/daily/data/1_11_0/sys_ingest_date=20220415/part-00000-739328a4-042a-442c-aa0a-39fdbe9d2433.c000.snappy.parquet
+group by type limit 10
+
+with a as
+(
+select coalesce($1:pnrCorrelations:correlationPnrInventory:pnrId
+                ,$1:pnrCorrelations:correlationPnrTicket:pnrId
+                ,$1:pnrCorrelations:correlationPnrSchedule:pnrId
+                ,$1:pnrCorrelations:correlationPnrDcsBaggage:pnrId
+                ,$1:pnrCorrelations:correlationPnrBagsGroup:pnrId                
+                ,$1:pnrCorrelations:correlationPnrEmd:pnrId) as pnr_corr 
+                ,parse_json($1:pnrCorrelations:dictionaries) as pnrs 
+from @lnd.SILVERSTRM2_SIT_STAGE_SILVER/pnr_corr/daily/data/1_11_0/sys_ingest_date=20220415/part-00000-739328a4-042a-442c-aa0a-39fdbe9d2433.c000.snappy.parquet limit 5)
+select value:id as ticket_id, value:version as ticket_version from a, lateral flatten( input => pnrs ) 
+ select * from top_level;
+ 
+ 
+with a as
+(
+ select coalesce($1:pnrCorrelations:correlationPnrInventory:pnrId
+                ,$1:pnrCorrelations:correlationPnrTicket:pnrId
+                ,$1:pnrCorrelations:correlationPnrSchedule:pnrId
+                ,$1:pnrCorrelations:correlationPnrDcsBaggage:pnrId
+                ,$1:pnrCorrelations:correlationPnrBagsGroup:pnrId                
+                ,$1:pnrCorrelations:correlationPnrEmd:pnrId) as pnr_corr 
+                ,parse_json($1:pnrCorrelations:dictionaries.pnrs) as pnrs
+                ,parse_json(coalesce($1:pnrCorrelations:dictionaries.tickets
+                ,$1:pnrCorrelations:dictionaries.bagsGroups
+                ,$1:pnrCorrelations:dictionaries.inventories
+                ,$1:pnrCorrelations:dictionaries.dcsPassengers
+                ,$1:pnrCorrelations:dictionaries.schedules                
+                ,$1:pnrCorrelations:dictionaries.emds)) as doc 
+  from @lnd.SILVERSTRM2_STAGE/pnr_corr/daily/data/1_11_0/sys_ingest_date=20220415/part-00000-739328a4-042a-442c-aa0a-39fdbe9d2433.c000.snappy.parquet limit 15
+),
+b as
+(select a.pnr_corr, value:id::string as pnr_id, value:version::string as pnr_version from a, lateral flatten(input=>a.pnrs)),
+c as 
+(select a.pnr_corr, value:id::string as ticket_id, value:version::string as ticket_version from a, lateral flatten(input=>a.doc))
+select pnr_id, pnr_version, ticket_id, ticket_version from b 
+join c
+on b.pnr_corr=c.pnr_corr
+
+
+select value:id as pnr_id, value:version as pnr_version from a, lateral flatten( input => $1) 
+
+with a as
+(
+  limit 5
+
+select value:id as pnr_id, value:version as pnr_version 
+  from (select parse_json($1:pnrCorrelations:dictionaries:pnrs) as pnrs 
+        from @lnd.SILVERSTRM2_STAGE/pnr_corr/daily/data/1_11_0/sys_ingest_date=20220415/ limit 5) as a, lateral flatten( input => $1 )
+  
+  DROP table sandbox.usr_vincent_a_yu.pnrcorr_pnr_ticket;
+  create table sandbox.usr_vincent_a_yu.ADLS_pnrcorr_pnr_ticket as
+  select b.value:id as pnr_id, b.value:version as pnr_version, c.value:id as ticket_id, c.value:version as ticket_version 
+  from @lnd.SILVERSTRM2_STAGE/pnr_corr/daily/data/1_11_0/sys_ingest_date=20220415/ as a
+  , lateral flatten( input => parse_json(a.$1:pnrCorrelations:dictionaries:pnrs)) as b,lateral flatten( input => parse_json(a.$1:pnrCorrelations:dictionaries:tickets)) as c
+  
+select b.value:id as pnr_id, b.value:version as pnr_version 
+  from @lnd.SILVERSTRM2_STAGE/pnr_corr/daily/data/1_11_0/sys_ingest_date=20220415/ as a, 
+  lateral flatten( input => parse_json(a.$1:pnrCorrelations:dictionaries:pnrs)) as b
+ limit 10 
+  
+   
+  
+(select 'alds' subject, * from @lnd.SILVERSTRM2_STAGE/pnr/daily/data/1_11_0/sys_ingest_date=20220415/ as a, lateral flatten( input => parse_json(a.$1:processedPnr)) as b
+  minus select 'alds', PNR_ID,PNR_VERSION from LND.LND_PNR) 
+  union  (select 'lnd' subject,PNR_ID,PNR_VERSION from LND.LND_PNR 
+    minus              
+  select 'lnd' subject, id,version from @lnd.SILVERSTRM2_STAGE/pnr/daily/data/1_11_0/sys_ingest_date=20220415/ as a, lateral flatten( input => parse_json(a.['$1:processedPnr'])) as b) 
+  
+select b.*
+from @lnd.SILVERSTRM2_STAGE/pnr/daily/data/1_11_0/sys_ingest_date=20220415/part-00004-25a78751-3084-4b66-b092-a0df211abce2.c000.snappy.parquet as a, 
+lateral flatten( input => a.$1:processedPnr) as b
+where b.key in ('id','version')
+limit 200 
+  
+    
+select b.key, b.value
+  from @lnd.SILVERSTRM2_STAGE/pnr/daily/data/1_11_0/sys_ingest_date=20220415/part-00004-25a78751-3084-4b66-b092-a0df211abce2.c000.snappy.parquet as a, 
+  lateral flatten( input => a.$1:processedPnr) as b
+  where b.key in ('id','version')
+ limit 200 
+  
+  select $1:processedPnr:id::string as PNR_ID,$1:processedPnr:version::string as PNR_VERSION 
+from @lnd.SILVERSTRM2_STAGE/pnr/daily/data/1_11_0/sys_ingest_date=20220415/part-00004-25a78751-3084-4b66-b092-a0df211abce2.c000.snappy.parquet 
+ limit 100
+ 
+select a.$1:processedPnr:id, a.$1:processedPnr:version  
+from @lnd.SILVERSTRM2_STAGE/pnr/daily/data/1_11_0/sys_ingest_date=20220415/part-00004-25a78751-3084-4b66-b092-a0df211abce2.c000.snappy.parquet as a, lateral flatten( input => a.$1)  
+limit 200 
+  
+  
+(select 'alds' subject, a.$1:processedPnr:id::string as PNR_ID,a.$1:processedPnr:version::string as PNR_VERSION 
+  from @lnd.SILVERSTRM2_STAGE/pnr/daily/data/1_11_0/sys_ingest_date=20220415/part-00004-25a78751-3084-4b66-b092-a0df211abce2.c000.snappy.parquet as a, lateral flatten( input => parse_json(a.$1)) as b
+   minus select 'alds', PNR_ID,PNR_VERSION from LND.LND_PNR)
+  union 
+  (select 'lnd' subject,PNR_ID,PNR_VERSION from LND.LND_PNR 
+  minus 
+  select 'lnd' subject, a.$1:processedPnr:id::string as PNR_ID,a.$1:processedPnr:version::string as PNR_VERSION 
+  from @lnd.SILVERSTRM2_STAGE/pnr/daily/data/1_11_0/sys_ingest_date=20220415/part-00004-25a78751-3084-4b66-b092-a0df211abce2.c000.snappy.parquet as a, 
+  lateral flatten( input => parse_json(a.$1)) as b)
+  
+create or replace table SANDBOX.USR_VINCENT_A_YU.LND_PNR_dup as 
+                     (select 'adls' subject, current_time Creation_Datetime, a.$1:processedPnr:id::string as PNR_ID,a.$1:processedPnr:version::string as PNR_VERSION, count(1) as DupCount 
+                     from @lnd.SILVERSTRM2_STAGE/pnr/daily/data/1_11_0/sys_ingest_date=20220415/part-00004-25a78751-3084-4b66-b092-a0df211abce2.c000.snappy.parquet as a 
+                     group by 1, 2, 3,4  having Dupcount>1 
+                     union all 
+                     select 'lnd', current_time, Pnr_id, pnr_version, count(1) as DupCount  
+                     from LND.LND_PNR 
+                     group by 1, 2, 3,4 having DupCount>1)
+  
+select get_ddl('TABLE','META_CONTEXT')
+  drop table META_TEST;
+  create or replace TABLE META_TEST (
+	id VARCHAR(100),
+	version VARCHAR(100),
+    product_id VARCHAR(100)
+);
+
+  INSERT INTO META_CONTEXT VALUES('TABLENAME','META_HUB');
+  INSERT INTO META_CONTEXT VALUES('LOOPJSONPATH','$.products[*]');
+  INSERT INTO META_CONTEXT VALUES('cPNR_ID','$.id');
+  INSERT INTO META_CONTEXT VALUES('cPNR_VERSION','$.version');
+  INSERT INTO META_CONTEXT VALUES('cPRODUCT_ID','id');
+  
+  select * from META_TEST
+  create or replace TABLE METACONTEXT (
+    TBNAME VARCHAR(100),
+	KEYCOL VARCHAR(100),
+	VALUECOL VARCHAR(100)
+);
+  
+  
+  INSERT INTO METACONTEXT VALUES('META_HUB','TABLENAME','META_HUB');
+  INSERT INTO METACONTEXT VALUES('META_HUB','LOOPJSONPATH','$.products[*]');
+  INSERT INTO METACONTEXT VALUES('META_HUB','PNR_ID','$.id');
+  INSERT INTO METACONTEXT VALUES('META_HUB','PNR_VERSION','$.version');
+  INSERT INTO METACONTEXT VALUES('META_HUB','PRODUCT_ID','id');
+  
+  
+  "MERGE INTO RDV.SAT_INV t1  USING  (SELECT HASH_DIFF,INV_HASHKEY,LOAD_DTETME,REC_SRCE,SYS_INGEST_TMS,BATCH_ID,META_VERSION,INV_VERSION,TYP,SCHEDULED_DEP_DTE,IS_CNCL_FLG,ONGOING_INV_REBUILD,ROUTE,FLT_DESIGNATOR_CARRIER_CDE,FLT_DESIGNATOR_FLT_NUM,FLT_DESIGNATOR_OPERATIONAL_SUFFIX FROM RDV.TMP_SAT_INV) t2  ON t1.= t2. WHEN NOT MATCHED THEN INSERT (HASH_DIFF,INV_HASHKEY,LOAD_DTETME,REC_SRCE,SYS_INGEST_TMS,BATCH_ID,META_VERSION,INV_VERSION,TYP,SCHEDULED_DEP_DTE,IS_CNCL_FLG,ONGOING_INV_REBUILD,ROUTE,FLT_DESIGNATOR_CARRIER_CDE,FLT_DESIGNATOR_FLT_NUM,FLT_DESIGNATOR_OPERATIONAL_SUFFIX) VALUES (HASH_DIFF,INV_HASHKEY,LOAD_DTETME,REC_SRCE,SYS_INGEST_TMS,BATCH_ID,META_VERSION,INV_VERSION,TYP,SCHEDULED_DEP_DTE,IS_CNCL_FLG,ONGOING_INV_REBUILD,ROUTE,FLT_DESIGNATOR_CARRIER_CDE,FLT_DESIGNATOR_FLT_NUM,FLT_DESIGNATOR_OPERATIONAL_SUFFIX)"
+  
+  select * from @lnd.SILVERSTRM2_SIT_STAGE_SILVER/pnr/daily/data/1_11_0 limit 5
+  
+    select * from @LND.SILVERSTRM2_STAGE/pnr/daily/data/1_11_0/    limit 10;
+ 
+select * from @LND.SILVERSTRM2_SIT_STAGE_SILVER/amadeus/pnr/daily/data/1_11_0/sys_ingest_date=20220415/   limit 10;
+ 
+select * from @lnd.SILVERSTRM2_STAGE/pnr/daily/data/1_11_0/sys_ingest_date=20220415/ limit 2
+
+ SELECT PARSE_JSON(PROCESSED_PNR) ,* FROM LND.LND_PNR pj
+,lateral flatten(input => PROCESSED_PNR:travelers,outer => true)f_travelers
+,lateral flatten(input => f_travelers.value:identityDocuments,outer => true) f_travelers_identityDocuments 
+  
+ SELECT  f_travelers.* FROM LND.LND_PNR pj,lateral flatten(input => PROCESSED_PNR:travelers,outer => true)f_travelers
+  WHERE  PNR_ID='3ZJZY3-2022-02-27'
+  
+ SELECT f_travelers.* ,f_travelers_identityDocuments.* FROM LND.LND_PNR pj,lateral flatten(input => PROCESSED_PNR:travelers,outer => true)f_travelers
+,lateral flatten(input => f_travelers.value:identityDocuments,outer => true) f_travelers_identityDocuments WHERE  PNR_ID='3ZJZY3-2022-02-27'
+  
+SELECT  TOP 10 *, LENGTH(PROCESSED_PNR) FROM LND.LND_PNR
+
+  SELECT  f_travelers.value:id::VARCHAR AS TRAVELER_ID,f_travelers_identityDocuments.value:id::VARCHAR AS IDENTITY_DOC_ID  from (SELECT PARSE_JSON(PROCESSED_PNR) ,* FROM LND.LND_PNR) pj
+,lateral flatten(input => PROCESSED_PNR:travelers,outer => true)f_travelers
+,lateral flatten(input => f_travelers.value:identityDocuments,outer => true)f_travelers_identityDocuments
+  WHERE  PNR_ID='3ZJZY3-2022-02-27';
+  
+select $1 as tkt from @lnd.SILVERSTRM2_STAGE/tkt/daily/data/3_0_0/sys_ingest_date=20220415/part-00000-cdfaa5d1-63be-4144-854b-07a9d18bb44b.c000.snappy.parquet limit 10
+where $1:processedTicket is not null 
+or $1:processedEmd is not null
+
+list @lnd.SILVERSTRM2_STAGE/pnr/daily/data/  pattern='.*/.*/.*[.]csv[.]gz';
+select $1 as pnr from @lnd.SILVERSTRM2_STAGE/pnr/daily/data/1_11_0/sys_ingest_date=20220415/part-00004-25a78751-3084-4b66-b092-a0df211abce2.c000.snappy.parquet
+list @lnd.SILVERSTRM2_STAGE/pnr_corr/daily/data/
+select $1 as pnr_corr from @lnd.SILVERSTRM2_STAGE/pnr_corr/daily/data/1_11_0/sys_ingest_date=20220415/part-00000-739328a4-042a-442c-aa0a-39fdbe9d2433.c000.snappy.parquet
+list @lnd.SILVERSTRM2_STAGE/dcsbag/daily/data/
+select $1 as dcsbag from @lnd.SILVERSTRM2_STAGE/dcsbag/daily/data/1_3_0/sys_ingest_date=20220327/part-00000-eff6b62f-510f-43f7-b346-c2c88d583b1a.c000.snappy.parquet
+where $1 like '%DELETED%'
+list @lnd.SILVERSTRM2_STAGE/dcsbag_corr/daily/data/
+select $1 as dcsbag_corr from @lnd.SILVERSTRM2_STAGE/dcsbag_corr/daily/data/1_3_0/sys_ingest_date=20220327/part-00000-aed52681-301e-47f3-b064-f167d4576dbb.c000.snappy.parquet
+list @lnd.SILVERSTRM2_STAGE/dcshist/daily/data/
+select $1 as dcshist from @lnd.SILVERSTRM2_STAGE/dcshist/daily/data/3_0_0/sys_ingest_date=20220415/part-00006-c8b25c89-4dcb-4419-837f-610684511fc2.c000.snappy.parquet
+list @lnd.SILVERSTRM2_STAGE/dcspax/daily/data/
+select $1 as dcspax from @lnd.SILVERSTRM2_STAGE/dcspax/daily/data/1_6_0/sys_ingest_date=20220327/part-00006-1b8e8b5d-43f5-4030-99a6-45e63dae8b2b.c000.snappy.parquet
+list @lnd.SILVERSTRM2_STAGE/dcspax_corr/daily/data/
+select $1 as dcspax_corr from @lnd.SILVERSTRM2_STAGE/dcspax_corr/daily/data/1_6_0/sys_ingest_date=20220327/part-00000-9279e03c-7e3f-48f7-aecc-f3e2e138b35f.c000.snappy.parquet
+list @lnd.SILVERSTRM2_STAGE/inv/daily/data/
+select $1 as inv from @lnd.SILVERSTRM2_STAGE/inv/daily/data/1_1_2/sys_ingest_date=20220329/part-00011-bd313faf-6f7b-4b2a-89f6-b55acc24ee68.c000.snappy.parquet
+list @lnd.SILVERSTRM2_STAGE/inv_corr/daily/data/
+select $1 as inv_corr from @lnd.SILVERSTRM2_STAGE/inv_corr/daily/data/1_1_2/sys_ingest_date=20220329/part-00020-d09cf522-d75a-4760-9939-21c3290ea8db.c000.snappy.parquet
+list @lnd.SILVERSTRM2_STAGE/skd/daily/data/
+select $1 as skd from @lnd.SILVERSTRM2_STAGE/skd/daily/data/1_3_0/sys_ingest_date=20220327/part-00000-a695eadd-ae79-4cfd-9801-8dd8cc43d1c1.c000.snappy.parquet
+list @lnd.SILVERSTRM2_STAGE/skd_corr/daily/data/
+select $1 as skd_corr from @lnd.SILVERSTRM2_STAGE/skd_corr/daily/data/1_3_0/sys_ingest_date=20220326/part-00019-9d26da9e-e795-407f-8373-fb6897446170.c000.snappy.parquet
+
+list @lnd.SILVERSTRM2_STAGE/tkt/daily/data/
+
+select $1 as tkt, $1:eventhub_enqued_tmsp as DT from @lnd.SILVERSTRM2_STAGE/tkt/daily/data/3_0_0/sys_ingest_date=20220415/part-00004-91abe402-419b-43c9-8671-03fabc5fbd15.c000.snappy.parquet limit 10
+
+
+
+list @lnd.SILVERSTRM2_STAGE/tkt_corr/daily/data/
+select $1 as tkt_corr from @lnd.SILVERSTRM2_STAGE/tkt_corr/daily/data/3_0_0/sys_ingest_date=20220415/part-00000-fc7cf1cd-5bd0-40e3-b283-9a189e73d59f.c000.snappy.parquet
+
+list @lnd.SILVERSTRM2_STAGE/bifda/daily/
+bifda/daily/20220407/PRD.NGI.BIFDA.INV.D220407.T070749.AMA.ACA.FTP.DATA
+list @lnd.SILVERSTRM2_STAGE/compensation/daily/
+select parse_json($1)  as compensation from @lnd.SILVERSTRM2_STAGE/compensation/daily/sys_ingest_date=20220405/part-00001-19608d17-748c-4165-8513-786cfdf49488.c000.snappy.parquet
+list @lnd.SILVERSTRM2_STAGE/dcscm/daily/
+dcscm/daily/20220415/PRD.CML.AC44.DUB.D220414.DATA.20220415160118
+list @lnd.SILVERSTRM2_STAGE/esf/daily/
+esf/daily/20220407/PRD.ETS.AC.AL.ESF.D220407.T060914
+list @lnd.SILVERSTRM2_STAGE/eupgrademde/daily/
+select $1 as eupgrademde from @lnd.SILVERSTRM2_STAGE/eupgrademde/daily/sys_ingest_date=20220411/part-00001-068b382c-a803-48d4-b4bc-5af6777259c2.c000.snappy.parquet
+list @lnd.SILVERSTRM2_STAGE/flightmgmt/daily/
+select $1 as flightmgmt from @lnd.SILVERSTRM2_STAGE/flightmgmt/daily/sys_ingest_date=20220408/part-00000-8bf0f190-6f9e-4f9d-9700-b3888d453647.c000.snappy.parquet
+list @lnd.SILVERSTRM2_STAGE/gatepass/daily/
+select $1 as gatepass from @lnd.SILVERSTRM2_STAGE/gatepass/daily/sys_ingest_date=20210625/part-00003-658e7682-f754-4b29-8754-4215091875da.c000.snappy.parquet
+list @lnd.SILVERSTRM2_STAGE/iatci/daily/
+select $1 as iatci from @lnd.SILVERSTRM2_STAGE/iatci/daily/sys_ingest_date=20201005/part-00000-62ae4d5d-59c0-431e-8618-d0245e88d6bd.c000.snappy.parquet
+list @lnd.SILVERSTRM2_STAGE/ssbrres/daily/
+select $1 as sbr from @lnd.SILVERSTRM2_STAGE/ssbrres/daily/sys_ingest_date=20220330/part-00000-17dc4dfa-7998-4a87-b63d-9eb18792fbbe.c000.snappy.parquet
+list @lnd.SILVERSTRM2_STAGE/ticketingHot/daily/20220407/PRD.TSR.AC.AL.TA.HOT.D220407.T051706
+list @lnd.SILVERSTRM2_STAGE/ticketingLift/daily/
+ticketingLift/daily/20220407/PRD.ETS.AC.AL.LFT.D220407.T231003
+list @lnd.SILVERSTRM2_STAGE/ticketingPurge/daily/
+ticketingPurge/daily/20220407/PRD.ETS.AC.AL.PRG.D220407.T231200
+list @lnd.SILVERSTRM2_STAGE/FSIS/aircraftUsage/daily/
+list @lnd.SILVERSTRM2_STAGE/FSIS/aircraftUsage/daily/
+list @lnd.SILVERSTRM2_STAGE/teradata/reference/
+'20220415145812621'
+
+select $1 as tkt, $1:eventhub_enqued_tmsp as DT, $1:processedTicket:primaryDocumentNumber as id from @lnd.SILVERSTRM2_STAGE/tkt/daily/data/3_0_0/sys_ingest_date=20220415/part-00004-91abe402-419b-43c9-8671-03fabc5fbd15.c000.snappy.parquet
+where id='0142147326864' --DT between '20220415145800000' and '20220415145815000'
+limit 10
+
+with a as
+(
+select coalesce($1:pnrCorrelations:correlationPnrInventory:pnrId
+                ,$1:pnrCorrelations:correlationPnrTicket:pnrId
+                ,$1:pnrCorrelations:correlationPnrSchedule:pnrId
+                ,$1:pnrCorrelations:correlationPnrDcsBaggage:pnrId
+                ,$1:pnrCorrelations:correlationPnrBagsGroup:pnrId                
+                ,$1:pnrCorrelations:correlationPnrEmd:pnrId) as pnr_corr 
+                ,parse_json($1:pnrCorrelations:dictionaries) as pnrs 
+from @lnd.SILVERSTRM2_STAGE/pnr_corr/daily/data/1_11_0/sys_ingest_date=20220415/part-00000-739328a4-042a-442c-aa0a-39fdbe9d2433.c000.snappy.parquet limit 5 
+),
+b as
+(
+select coalesce($1:pnrCorrelations:correlationPnrInventory:pnrId
+                ,$1:pnrCorrelations:correlationPnrTicket:pnrId
+                ,$1:pnrCorrelations:correlationPnrSchedule:pnrId
+                ,$1:pnrCorrelations:correlationPnrDcsBaggage:pnrId
+                ,$1:pnrCorrelations:correlationPnrBagsGroup:pnrId                
+                ,$1:pnrCorrelations:correlationPnrEmd:pnrId) as pnr_corr 
+                ,coalesce($1:pnrCorrelations:dictionaries.tickets
+                ,$1:pnrCorrelations:dictionaries.bagsGroups
+                ,$1:pnrCorrelations:dictionaries.inventories
+                ,$1:pnrCorrelations:dictionaries.dcsPassengers
+                ,$1:pnrCorrelations:dictionaries.schedules                
+                ,$1:pnrCorrelations:dictionaries.emds) as doc 
+from @lnd.SILVERSTRM2_STAGE/pnr_corr/daily/data/1_11_0/sys_ingest_date=20220415/part-00000-739328a4-042a-442c-aa0a-39fdbe9d2433.c000.snappy.parquet limit 5
+)
+select a.pnr_corr, parse_json(a.pnrs) as pnrs, b.doc from a join b on a.pnr_corr=b.pnr_corr
+
+select * from  EDW_DEV.INFORMATION_SCHEMA.PROCEDURES where procedure_schema = 'RDV'
+
+select get_ddl('procedure','LND_PARSE')
+select get_ddl('procedure', 'TEST_ROW_PROC(VARCHAR,VARCHAR,VARCHAR,VARCHAR,VARCHAR)');
+
+
+
+select * from EDW_DEV.RDV.TMP_HUB_PNR_BAGS qualify row_number() over(partition by BAG_HASHKEY order by LOAD_DTETME asc)=1
+
+select distinct ACFT_EQUIP_HASHKEY from "EDW_DEV"."RDV"."SAT_SCHEDULE_SALEABLE"
+select  ACFT_EQUIP_HASHKEY, * from HUB_SCHEDULE_ACFT_EQUIP order by 1
+select * from information_schema.columns where column_name like 'ACFT_EQUIP_HASHKEY'
+select  COUNT(DISTINCT HASH_DIFF, INV_HASHKEY) from sat_INV 
+
+select count( LINK_hashkey) from LINK_INV_SEG
+
+select   $1   from @lnd.SILVERSTRM2_STAGE/pnr_corr/daily/data/1_11_0/sys_ingest_date=20220415/ 
+
+ select $1    from @lnd.SILVERSTRM2_STAGE/pnr_corr/daily/data/1_11_0/sys_ingest_date=20220415/  quality row_number() over (partition by $1 order by $1 
+ where rown_number=1
+
+  select distinct $1   from @lnd.SILVERSTRM2_STAGE/pnr_corr/daily/data/1_11_0//sys_ingest_date=20220415/
+
+select get_ddl('procedure', 'TEST_PROC( VARCHAR, VARCHAR, VARCHAR, VARCHAR)')  ;
+select get_ddl('procedure', 'MERGE_PROC(VARCHAR, VARCHAR, VARCHAR, VARCHAR, VARCHAR, VARCHAR)')  
+select get_ddl('procedure', 'vyu_test_LND_PARSE( VARCHAR, VARCHAR, VARCHAR, VARCHAR)')  
+select get_ddl('procedure', 'ILTER_FORMATTER(VARCHAR, VARCHAR)')  
+
+select * from information_schema.PROCEDURES WHERE PROCEDURE_SCHEMA='RDV'
+drop procedure VYU_TEST_PROC( VARCHAR, VARCHAR, VARCHAR, VARCHAR)
+
+DROP PROCEDURE EDW_DEV.RDV.vyu_test_LND_PARSE();
+
+CALL TEST_ROW_PROC('MSTR','LND_PNR','HUB','HUB_PNR','PNR_HASHKEY');
+                                                                                                                           
+                                                                                                                           
+select $1,$1,metadata$filename,metadata$file_row_number
+from  @lnd.SILVERSTRM2_STAGE/bifda/daily/ ( FILE_FORMAT => 'FF_CSV', PATTERN => '.*[/]*');
+                                                                                                                           
+select * from rdv.mstr
+                                                                                                                           
+SELECT subjecttable,  concat(listagg(hashkey,',')) as GroupKey FROM 
+(Select TGT subjectTable, TGT_COL as HASHKEY From RDV.MSTR Where SRC='lnd_pnr'  AND (TYPE='HUB' AND TGT_COL like '%HASH%' ) OR ((TYPE='SAT' AND TGT_COL like '%HASH%') or (TYPE='SAT' AND TGT_COL like '%VERSION%' and  TGT_COL not like '%META_%')) OR (TYPE = 'LINK' AND TGT_COL = 'LINK_HASHKEY')) AS bas
+//WHERE left(subjecttable,3)='SAT'
+GROUP BY 1 
+                                                                                                                           
+                                                                                                                           
+SELECT subjecttable, concat(listagg(hashkey,',')) as GroupKey FROM (Select TGT subjectTable, TGT_COL as HASHKEY From RDV.MSTR Where SRC='#TaskFeed#' AND (TYPE='HUB' AND TGT_COL like '%HASH%' ) OR ((TYPE='SAT' AND TGT_COL like '%HASH%') or (TYPE='SAT' AND TGT_COL like '%VERSION%' and TGT_COL not like '%META_%')) OR (TYPE = 'LINK' AND TGT_COL = 'LINK_HASHKEY')) as BAS group by 1                                                                                                                           
+                                                                                                                           
+                                                                                                                           
+update   SANDBOX.USR_VINCENT_A_YU.SVRJOB set status=0    
+                      select  from                    SANDBOX.USR_VINCENT_A_YU.SVRJOB                                                                                   
+select hash_diff from                                                                                                                               
+                                                                                                                           
+Select TGT subjectTable, TGT_COL as HASHKEY From RDV.MSTR 
+Where SRC='LND_PNR'  
+AND ((TYPE='HUB' AND TGT_COL like '%HASH%' ) 
+     OR ((TYPE='SAT' AND TGT_COL like '%HASH%') 
+         or (TYPE='SAT' AND TGT_COL like '%VERSION%' and  TGT_COL not like '%META_%')) 
+     OR (TYPE = 'LINK' AND TGT_COL = 'LINK_HASHKEY'))       
+                                                                                                                           
+SELECT subjecttable, concat(listagg(hashkey,',')) as GroupKey 
+FROM group by 1
+(Select TGT subjectTable, TGT_COL as HASHKEY From RDV.MSTR 
+ Where SRC='LND_PNR'  
+ AND ((TYPE='HUB' AND TGT_COL like '%HASH%' ) 
+      OR ((TYPE='SAT' AND TGT_COL like '%HASH%' and TGT_COL!='HASH_DIFF') 
+          or (TYPE='SAT' AND TGT_COL like '%VERSION%' and TGT_COL not like '%META_%')) 
+      OR (TYPE = 'LINK' AND TGT_COL = 'LINK_HASHKEY'))  
+ 
+select distinct table_name from information_schema.columns where table_schema='RDV' and table_name like 'SAT%'   
+ minus
+ select table_name from information_schema.columns where table_schema='RDV' and table_name like 'SAT%' and column_name like '%VERSION'  
+ 
+ select * from information_schema.columns where table_schema='RDV' and table_name ='SAT_PNR_FARE_ELEMENT'
+ 
+ select * from information_schema.stages
+ 
+ 
+create or replace stage LND.SILVERSTRM2_SIT_STAGE_SILVER
+  storage_integration = SILVER_SIT
+  url = 'azure://acaze2sitloydatalake.blob.core.windows.net/air-canada/Silver/'
+  file_format = LND.PARQUET_FORMAT;
+
+
+create or replace stage LND.SILVERSTRM2_SIT_STAGE_SILVER_HIST
+  storage_integration = SILVER_SIT
+  url = 'azure://acaze2sitloydatalake.blob.core.windows.net/air-canada/SilverHist/'
+  file_format = LND.PARQUET_FORMAT;
+ 
+ 
+Select * from information_schema.stages 
+ 
+select * from @lnd.SILVERSTRM2_STAGE/ticketingHot/daily/20220407/PRD.TSR.AC.AL.TA.HOT.D220407.T051706 limit 10;
+ 
+  
+list @lnd.SILVERSTRM2_SIT_STAGE_SILVER/amadeus/pnr/daily/data/
+ 
+ 
+SELECT * FROM rdv.ARRAY_LIST WHERE upper(ARRAY_LIST) LIKE '%UNION%'
+ 
+ select * from rdv.mstr where tgtx='HUB_PNR'
+ 
+ select * from information_schema.tables where table_name like '%BIF%'
+ 
+ select top 1 * from lnd.stage_bif.SYS_INGEST_DATE
+ 
+ SELECT * FROM rdv.ARRAY_LIST
+ 
+ SELECT * FROM rdv.ARRAY_TEST
+
+set start_date= (select replace(to_char(current_date()-273),'-',''));
+select $start_date;
+select count(1) from @lnd.SILVERSTRM2_SIT_STAGE_SILVER_HIST/amadeus/pnr/historical/data/1_6_1/sys_ingest_date=20211115/  
+
+--BIF
+with cte as (
+ select replace(replace(replace($1,chr(28),'''\n'),chr(29),'+'),chr(31),':') as EDI,metadata$filename,metadata$file_row_number 
+  from @lnd.SILVERSTRM2_STAGE/bifda/daily/20220407/PRD.NGI.BIFDA.INV.D220407.T070749.AMA.ACA.FTP.DATA ( FILE_FORMAT => 'FF_CSV', PATTERN => '.*[/]*')),
+cte1 as (select (c.value::string) as childname,metadata$filename,metadata$file_row_number from cte, lateral flatten(input=>split(EDI, 'UNH')) c)
+select * from cte1
+
+//select  concat('UNH+', childname) as BIF_MESSAGE,metadata$filename,metadata$file_row_number from cte1 where RTRIM(LTRIM(childname)) not like 'UNB%';
+//
+//select replace(replace(replace($1,chr(28),'''\n'),chr(29),'+'),chr(31),':') as EDI,metadata$filename,metadata$file_row_number 
+//from @lnd.SILVERSTRM2_STAGE/bifda/daily/20220407/PRD.NGI.BIFDA.INV.D220407.T070749.AMA.ACA.FTP.DATA ( FILE_FORMAT => 'FF_CSV', PATTERN => '.*[/]*')
+
+with cte as (
+ select replace(replace(replace($1,chr(28),'''\n'),chr(29),'+'),chr(31),':') as EDI,metadata$filename,metadata$file_row_number from @LND.SILVERSTRM2_SIT_STAGE_SILVER/amadeus/bifda/daily/20220627/SIT.NGI.BIF.NEG.D220608.T080001.AMA.ACA.FTP.DATA_20220627185909 ( FILE_FORMAT => 'FF_CSV', PATTERN => '.*[/]*')
+ ),cte1 AS (
+ select (c.value::string) as childname,metadata$filename,metadata$file_row_number
+from  cte ,lateral flatten(input=>split(EDI, 'UNH')) c)
+            select  len(concat('UNH', childname)) as BIF_MESSAGE,metadata$filename,metadata$file_row_number from cte1
+            where RTRIM(LTRIM(childname)) not like 'UNB%';
+
+with cte as (
+ select replace(replace(replace($1,chr(28),'''\n'),chr(29),'+'),chr(31),':') as EDI,metadata$filename,metadata$file_row_number from @lnd.SILVERSTRM2_STAGE/bifda/daily/20220407/PRD.NGI.BIFDA.INV.D220407.T070749.AMA.ACA.FTP.DATA 
+ ),cte1 AS (
+ select (c.value::string) as childname,metadata$filename,metadata$file_row_number
+from  cte ,lateral flatten(input=>split(EDI, 'UNH')) c)
+            select  (concat('UNH', childname)) as BIF_MESSAGE,metadata$filename,metadata$file_row_number from cte1
+            where RTRIM(LTRIM(childname)) not like 'UNB%';
+            
+select  split_part($1, 'UNH', 0)  from @lnd.SILVERSTRM2_STAGE/bifda/daily/20220407/PRD.NGI.BIFDA.INV.D220407.T070749.AMA.ACA.FTP.DATA ( FILE_FORMAT => 'FF_CSV', PATTERN => '.*[/]*')
+
+select array_size(split($1, 'UNH')) from @LND.SILVERSTRM2_SIT_STAGE_SILVER/amadeus/bifda/daily/20220627/SIT.NGI.BIF.NEG.D220608.T080001.AMA.ACA.FTP.DATA_20220627185909 ( FILE_FORMAT => 'FF_CSV', PATTERN => '.*[/]*')
+            
+ 
+ select replace(replace(replace($1,chr(28),'''\n'),chr(29),'+'),chr(31),':') as EDI,metadata$filename,metadata$file_row_number 
+ from @lnd.SILVERSTRM2_STAGE/bifda/daily/20220407/PRD.NGI.BIFDA.INV.D220407.T070749.AMA.ACA.FTP.DATA ( FILE_FORMAT => 'RDV.VYU_CSV', PATTERN => '.*[/]*')
+   
+select * from information_schema.tables where table_name like '%PNR_CORR%'
+            
+SELECT * FROM RDV.LINK_PNR_CORRELATION_INV
+
+WITH sourceData AS (
+-- source data soreted by VERSION
+	SELECT
+		*
+	FROM
+		RDV.TMP_SAT_PNR_DELIVERY_LEG
+	WHERE	DELIVERY_LEG_HASHKEY IS NOT NULL
+		AND HASH_DIFF IS NOT NULL
+	ORDER BY
+		try_to_number(CAST( PNR_VERSION AS varchar)) ),
+		
+	targetData AS (
+-- get max version of list of PNRs from target which matches source data
+	SELECT	* FROM RDV.SAT_PNR_DELIVERY_LEG a
+	WHERE	EXISTS (
+		SELECT * FROM sourceData b	WHERE b.DELIVERY_LEG_HASHKEY = a.DELIVERY_LEG_HASHKEY ) QUALIFY ROW_NUMBER() OVER(PARTITION BY DELIVERY_LEG_HASHKEY ORDER BY	try_to_number(CAST(PNR_VERSION AS varchar)) DESC ) = 1)
+		
+		
+SELECT *
+FROM
+	(
+	SELECT
+		* ,
+		LAG(HASH_DIFF) OVER(PARTITION BY DELIVERY_LEG_HASHKEY
+	ORDER BY
+		try_to_number(CAST(PNR_VERSION AS varchar))) AS prevHashDiff
+	FROM
+		(
+		SELECT
+			a.*,
+			b.HASH_DIFF AS tgtHashDiff
+		FROM
+			(
+			-- get max version from source
+			SELECT * FROM sourceData QUALIFY ROW_NUMBER() OVER(PARTITION BY DELIVERY_LEG_HASHKEY, PNR_VERSION, HASH_DIFF	ORDER BY try_to_number(CAST( PNR_VERSION AS varchar)) ,	HASH_DIFF ) = 1
+				) a
+				
+		LEFT JOIN targetData b ON
+			b.DELIVERY_LEG_HASHKEY = a.DELIVERY_LEG_HASHKEY
+		WHERE
+			a.PNR_VERSION > IFNULL(b.PNR_VERSION, TO_TIMESTAMP('1900-01-01 00:00:00')) )
+	ORDER BY
+		DELIVERY_LEG_HASHKEY ,
+		try_to_number(CAST( PNR_VERSION AS varchar)) ,
+		HASH_DIFF ) a
+WHERE
+	(IFNULL(prevHashDiff, tgtHashDiff) IS NULL
+		OR IFNULL(prevHashDiff, tgtHashDiff) != a.HASH_DIFF ) ;
+ 
+-- Framework
+
+SELECT *, length(ARRAY_LIST) FROM rdv.ARRAY_LIST WHERE upper(ARRAY_LIST) LIKE '%UNION%'
+
+SELECT * FROM rdv.ARRAY_LIST WHERE upper(src) LIKE '%PNR%'
+
+
+SELECT *, length(ARRAY_LIST) FROM rdv.ARRAY_LIST order by length(ARRAY_LIST) desc
+ 
+ select * from rdv.mstr where tgt='HUB_PNR'
+ 
+drop table EDW_DEV.RDV.REF_MILEAGE 
+
+ SELECT top 5 pj.pnr_id,f_quotations.*,f_couponPricings.*,f_currencyConversionRates.* FROM LND.LND_PNR  pj
+,lateral flatten(input => PROCESSED_PNR:quotations, outer => true)f_quotations
+,lateral flatten(input => f_quotations.value:couponPricings, outer => true)f_couponPricings
+,lateral flatten(input => f_quotations.value:currencyConversionRates, outer => true)f_currencyConversionRates
+where pnr_id='4EU6IH-2021-10-25'
+
+SELECT DISTINCT SHA2(concat_ws('~',TRIM(IFNULL(f_quotations.value:type,'^^')),TRIM(IFNULL(f_quotations.value:recordType,'^^')),TRIM(IFNULL(f_quotations.value:isManual,'^^')),TRIM(IFNULL(f_quotations.value:documentType,'^^')),TRIM(IFNULL(f_quotations.value:issuanceState,'^^')),TRIM(IFNULL(f_quotations.value:lastTicketingDate,'^^')),TRIM(IFNULL(f_quotations.value:originCityCode,'^^')),TRIM(IFNULL(f_quotations.value:destinationCityCode,'^^')),TRIM(IFNULL(f_quotations.value:creation:date,'^^')),TRIM(IFNULL(f_quotations.value:creation:pointOfSale:office:id,'^^')),TRIM(IFNULL(f_quotations.value:modification:date,'^^')),TRIM(IFNULL(f_quotations.value:modification:pointOfSale:office:id,'^^')),TRIM(IFNULL(f_quotations.value:recordFlags,'^^')),TRIM(IFNULL(f_quotations.value:pricingFlags,'^^')),TRIM(IFNULL(f_quotations.value:paymentConditions:restriction,'^^')),TRIM(IFNULL(f_quotations.value:fareCalculation:pricingIndicator,'^^')),TRIM(IFNULL(f_quotations.value:fareCalculation:text,'^^')),TRIM(IFNULL(f_couponPricings.value:remark,'^^')),TRIM(IFNULL(f_couponPricings.value:isConnection,'^^')),TRIM(IFNULL(f_couponPricings.value:isStopOver,'^^')),TRIM(IFNULL(f_couponPricings.value:flags,'^^')),TRIM(IFNULL(f_couponPricings.value:fareBasis:ticketDesignatorCode,'^^')),TRIM(IFNULL(f_couponPricings.value:fareBasis:primaryCode,'^^')),TRIM(IFNULL(f_couponPricings.value:fareBasis:fareBasisCode,'^^')),TRIM(IFNULL(f_couponPricings.value:baggageAllowance:quantity,'^^')),TRIM(IFNULL(f_couponPricings.value:baggageAllowance:weight:value,'^^')),TRIM(IFNULL(f_couponPricings.value:baggageAllowance:weight:unit,'^^')),TRIM(IFNULL(f_couponPricings.value:associatedDocuments:documentType,'^^')),TRIM(IFNULL(f_couponPricings.value:associatedDocuments:documentNumber,'^^')),TRIM(IFNULL(f_couponPricings.value:associatedDocuments:couponNumbers,'^^')),TRIM(IFNULL(f_couponPricings.value:validityDates:notValidBeforeDate,'^^')),TRIM(IFNULL(f_couponPricings.value:validityDates:notValidAfterDate,'^^')),TRIM(IFNULL(f_currencyConversionRates.value:conversionType,'^^')),TRIM(IFNULL(f_currencyConversionRates.value:rate,'^^'))))::VARCHAR AS HASH_DIFF,SHA2(f_quotations.value:id)::VARCHAR AS OFFERING_HASHKEY, CURRENT_TIMESTAMP()::TIMESTAMP_NTZ(9) AS LOAD_DTETME, SOURCECODE    ::VARCHAR AS REC_SRCE, SYS_INGEST_TMSP::VARCHAR AS SYS_INGEST_TMS, 1::VARCHAR AS BATCH_ID, JSON_VERSION::VARCHAR AS META_VERSION, pj.PROCESSED_PNR:version::VARCHAR AS PNR_VERSION, f_quotations.value:type::VARCHAR AS TYP, f_quotations.value:recordType::VARCHAR AS REC_TYP, f_quotations.value:isManual::VARCHAR AS IS_MANUAL, f_quotations.value:documentType::VARCHAR AS DOC_TYP, f_quotations.value:issuanceState::VARCHAR AS ISSUANCE_STATE, f_quotations.value:lastTicketingDate::VARCHAR AS LAST_TICKETING_DTE, f_quotations.value:originCityCode::VARCHAR AS ORIG_CITY_CDE, f_quotations.value:destinationCityCode::VARCHAR AS DEST_CITY_CDE, f_quotations.value:creation:date::VARCHAR AS CREATION_DTE, f_quotations.value:creation:pointOfSale:office:id::VARCHAR AS CREATION_POS_OFFICE_ID, f_quotations.value:modification:date::VARCHAR AS MODIFICATION_POS_OFFICE_ID, f_quotations.value:modification:pointOfSale:office:id::VARCHAR AS MODIFICATION_DTE, f_quotations.value:recordFlags::VARCHAR AS REC_FLAGS, f_quotations.value:pricingFlags::VARCHAR AS PRICING_FLAGS, f_quotations.value:paymentConditions:restriction::VARCHAR AS PAYMENT_RESTRICTION_CONDITIONS, f_quotations.value:fareCalculation:pricingIndicator::VARCHAR AS FARE_CALCULATION_PRICING_IND, f_quotations.value:fareCalculation:text::VARCHAR AS FARE_CALCULATION_TEXT, f_couponPricings.value:remark::VARCHAR AS CPN_PRICINGS_RMRK, f_couponPricings.value:isConnection::VARCHAR AS CPN_PRICINGS_IS_CNX, f_couponPricings.value:isStopOver::VARCHAR AS CPN_PRICINGS_IS_STOP_OVER, f_couponPricings.value:flags::VARCHAR AS CPN_PRICINGS_FLAGS, f_couponPricings.value:fareBasis:ticketDesignatorCode::VARCHAR AS CPN_PRICINGS_FARE_BASIS_TKT_DESIGNATOR_CDE, f_couponPricings.value:fareBasis:primaryCode::VARCHAR AS CPN_PRICINGS_FARE_BASIS_PRIMARY_CDE, f_couponPricings.value:fareBasis:fareBasisCode::VARCHAR AS CPN_PRICINGS_FARE_BASIS_CDE, f_couponPricings.value:baggageAllowance:quantity::VARCHAR AS CPN_PRICINGS_BAG_ALW_QTY, f_couponPricings.value:baggageAllowance:weight:value::VARCHAR AS CPN_PRICINGS_BAG_ALW_WGT_VAL, f_couponPricings.value:baggageAllowance:weight:unit::VARCHAR AS CPN_PRICINGS_BAG_ALW_WGT_UNIT, f_couponPricings.value:associatedDocuments:documentType::VARCHAR AS CPN_PRICINGS_ASSOCIATED_DOCUMENTS_DOC_TYP, f_couponPricings.value:associatedDocuments:documentNumber::VARCHAR AS CPN_PRICINGS_ASSOCIATED_DOCUMENTS_DOC_NUM, f_couponPricings.value:associatedDocuments:couponNumbers::VARCHAR AS CPN_PRICINGS_ASSOCIATED_DOCUMENTS_CPN_NUM, f_couponPricings.value:validityDates:notValidBeforeDate::VARCHAR AS CPN_PRICINGS_VALIDITY_DTE_NOTVALID_BEFOREDATE, f_couponPricings.value:validityDates:notValidAfterDate::VARCHAR AS CPN_PRICINGS_VALIDITY_DTE_NOTVALID_AFTERDATE, f_currencyConversionRates.value:conversionType::VARCHAR AS CRCY_CONVERSION_RATES_TYP, f_currencyConversionRates.value:rate::VARCHAR AS CRCY_CONVERSION_RATES_RATE  from (SELECT PARSE_JSON(PROCESSED_PNR) ,* FROM LND.LND_PNR) pj
+,lateral flatten(input => PROCESSED_PNR:quotations, outer => true)f_quotations
+,lateral flatten(input => f_quotations.value:couponPricings, outer => true)f_couponPricings
+,lateral flatten(input => f_quotations.value:currencyConversionRates, outer => true)f_currencyConversionRates
+where pnr_id='4EU6IH-2021-10-25'
+
+ SELECT top 5 pj.pnr_id,f_quotations.*,f_couponPricings.*,f_currencyConversionRates.* FROM LND.LND_PNR  pj
+,lateral flatten(input => PROCESSED_PNR:quotations, outer => true)f_quotations
+,lateral flatten(input => f_quotations.value:couponPricings, outer => true)f_couponPricings
+,lateral flatten(input => f_quotations.value:currencyConversionRates, outer => true)f_currencyConversionRates
+where pnr_id='4EU6IH-2021-10-25'
+
+
+ SELECT PARSE_JSON(PNR_CORRELATION) ,length(PNR_CORRELATION)
+ FROM LND.LND_PNR_CORR  t 
+// , lateral flatten(input => parse_json(PNR_CORRELATION:correlationPnrBagsGroup:bagsGroupIds))f_bagsid 
+// ,lateral flatten(input => parse_json(PNR_CORRELATION:correlationPnrBagsGroup:correlatedData))f_bagsid_corr
+// ,lateral flatten(input => parse_json(f_bagsid_corr.value))f_bagsid_det
+// ,lateral flatten(input => parse_json(f_bagsid_det.value:bagLegCorrelations))f_bagsid_det_corr
+// ,lateral flatten(input => parse_json(PNR_CORRELATION:dictionaries:bagsGroups))f_bags_dict 
+// where f_bagsid_corr.key = f_bagsid.value and f_bags_dict.key = f_bagsid.value
+ where pnr_id='43XSSF-2022-04-03'
+ 
+ select top 30 * from LND.LND_PNR_CORR
+ 
+SELECT DISTINCT  SHA2(concat_ws('~',TRIM(IFNULL(PNR_VERSION,'^^'))
+   ,TRIM(IFNULL(f_bagsid_det.value:pnrTravelerId,'^^'))
+   ,TRIM(IFNULL(f_bagsid_det.value:bagId,'^^'))
+   ,TRIM(IFNULL(f_bagsid_det_corr.value:pnrAirSegmentId,'^^'))
+   ,TRIM(IFNULL(f_bagsid_det_corr.value:bagLegDeliveryId,'^^'))
+   ,TRIM(IFNULL(PNR_ID,'^^')),TRIM(IFNULL(f_bagsid.value,'^^'))
+   ,TRIM(IFNULL(f_bags_dict.value:version,'^^'))))::VARCHAR AS HASH_DIFF
+   ,SHA2(concat_ws('~',TRIM(f_bagsid.value)
+   ,TRIM(PNR_ID)))::VARCHAR AS LINK_HASHKEY
+   , CURRENT_TIMESTAMP()::TIMESTAMP_NTZ(9) AS LOAD_DTETME
+   , SOURCECODE    ::VARCHAR AS REC_SRCE
+   , SYS_INGEST_TMSP::VARCHAR AS SYS_INGEST_TMS
+   , 1::VARCHAR AS BATCH_ID
+   , JSON_VERSION::VARCHAR AS META_VERSION
+   , PNR_VERSION::VARCHAR AS PNR_VERSION
+   ,f_bagsid_det.value:pnrTravelerId::VARCHAR AS PNR_TRAVELER_ID
+   ,f_bagsid_det.value:bagId::VARCHAR AS BAG_ID
+   ,f_bagsid_det_corr.value:pnrAirSegmentId::VARCHAR AS BAG_LEG_PNR_AIRSEGMENT_D
+   ,f_bagsid_det_corr.value:bagLegDeliveryId::VARCHAR AS BAG_LEG_BAG_DELIVERY_ID
+   , PNR_ID::VARCHAR AS PNRID,f_bagsid.value ::VARCHAR AS BAGS_GRP_ID
+   ,f_bags_dict.value:version::VARCHAR AS BAGS_GRP_VERSION 
+   FROM  
+   (SELECT PARSE_JSON(PNR_CORRELATION) ,* FROM LND.LND_PNR_CORR) t 
+   , lateral flatten(input => parse_json(PNR_CORRELATION:correlationPnrBagsGroup:bagsGroupIds))f_bagsid 
+   ,lateral flatten(input => parse_json(PNR_CORRELATION:correlationPnrBagsGroup:correlatedData))f_bagsid_corr
+   ,lateral flatten(input => parse_json(f_bagsid_corr.value))f_bagsid_det
+   ,lateral flatten(input => parse_json(f_bagsid_det.value:bagLegCorrelations))f_bagsid_det_corr
+   ,lateral flatten(input => parse_json(PNR_CORRELATION:dictionaries:bagsGroups))f_bags_dict 
+   where f_bagsid_corr.key = f_bagsid.value and f_bags_dict.key = f_bagsid.value --order by length(PNR_CORRELATION) desc
+    and pnr_id='43XSSF-2022-04-03'
+    
+    
+select * from "EDW_SIT"."INFORMATION_SCHEMA".STAGES   
+
+-- stored procedure
+CREATE OR REPLACE PROCEDURE SANDBOX.USR_VINCENT_A_YU.CREATECOPYSTATEMENT(DAYBACK FLOAT, SCHEMANAME VARCHAR, FEEDLND VARCHAR )
+RETURNS varchar
+LANGUAGE JAVASCRIPT
+AS 
+$$
+
+VAR sqlText = `COPY INTO'+SCHEMANAME+ '.'+ FEEDLND + '@lnd.SILVERSTRM2_SIT_STAGE_SILVER_HIST/amadeus/pnr/historical/data/1_6_1/sys_ingest_date='+ $START_DATE + '/'`
+
+stmt = snowflake.createStatement(
+  {sqlText: 'COPY INTO'+SCHEMANAME+ '.'+ FEEDLND + '@lnd.SILVERSTRM2_SIT_STAGE_SILVER_HIST/amadeus/pnr/historical/data/1_6_1/sys_ingest_date='+ $START_DATE + '/'}
+
+return stmt.getSqlText();
+$$
+;
+--copy into RDV_PRIVATE.LND_DCS_HIST FROM ( select $1:meta.version::varchar as JSONVERSION,$1:sys_ingestion_source::varchar as SYS_INGESTION_SOURCE,$1:eventTimestamp::varchar as EVENTTIMESTAMP, $1:processedDcsHistory::variant as PROCESSED_DCS_HIST,TO_TIMESTAMP(TO_CHAR($1:eventhub_enqued_tmsp),'YYYYMMDDHH24MISSFF3') as UTC,TO_TIMESTAMP(TO_CHAR($1:sys_ingest_tmsp),'YYYYMMDDHH24MISSFF3') as SYS_INGEST_TMSP,$1:sys_source_name::varchar as SOURCECODE,$1:processedDcsHistory:id::varchar as DCS_HIST_ID,$1:processedDcsHistory:version::varchar as HIST_VERSION, METADATA$FILENAME AS FILENAME,METADATA$FILE_ROW_NUMBER AS FILEROW,1 AS BATCH_ID 
+CALL SANDBOX.USR_VINCENT_A_YU.CREATECOPYSTATEMENT(172, 'RDV_PRIVATE', 'LND_PNR' )
+ 
+ 
+ 
+    // Initialize the Variables      
+    var STARTDATE    = P_STARTDATE.toString().trim();
+    var ENDDATE      = P_ENDDATE.toString().trim();
+    var YYYYMM       = [];
+    var currentyr    = new Date().getFullYear().toString();
+    var currentmon   = new Date().getMonth().toString(); 
+    var previousmonyr= new Date(currentyr, currentmon, 0).getFullYear();
+    var previousmon  = new Date(currentyr, currentmon, 0).getMonth();
+    
+    // Function to return list of YYYYMM interger for output of each months between STARTDATE and ENDDATE 
+    function dateRange(STARTDATE, ENDDATE) {
+      var sday         = STARTDATE.substring(6,8);
+      var eday         = ENDDATE.substring(6,8);   
+      var startYear    = parseInt(STARTDATE.substring(0,4));
+      var smonth       = parseInt(STARTDATE.substring(4,6));  
+      var endYear      = parseInt(ENDDATE.substring(0,4));  
+      var emonth       = parseInt(ENDDATE.substring(4,6));
+      var YYYYMM       = [];
+
+      // check if paraYearMonth >= currentYrMon, then use previous month      
+      if (parseInt(previousmonyr)*100+parseInt(previousmon)<=startYear*100+smonth)
+        {
+          startYear = currentyr;
+          smonth  = currentmon;
+        }
+      if (parseInt(previousmonyr)*100+parseInt(previousmon)<=endYear*100+emonth)
+        {
+          endYear = currentyr;
+          emonth  = currentmon;
+        }
+
+      for(var i = startYear; i <= endYear; i++) {
+          var endMonth = i != endYear ? 11 : emonth-1;
+          var startMon = i === startYear ? smonth-1 : 0;
+          for(var j = startMon; j <= endMonth; j = j > 12 ? j % 12 || 11 : j+1) {
+            var month = j+1;
+            var displayMonth = month < 10 ? '0'+month : month;
+            YYYYMM.push(parseInt([i, displayMonth].join('')));
+          }
+        }
+        return YYYYMM;
+      }  
+          
+	if(P_DEBUG === 1){
+    	return sqlTextOne;
+    } else {
+            try {
+          		  var sqlStmttrun = snowflake.createStatement({sqlText: `TRUNCATE TABLE TRANSFORM.COBRAND_BENEFITFEE_INTERNAL`});
+          		  sqlStmttrun.execute();
+        	} catch(err) {
+            	throw 'Encountered error in truncating target table' + err.message;
+        	}
+        // Get list of YYYYMM and loop it to call length(YYYYMM) times query.  
+        YYYYMM=dateRange(STARTDATE,ENDDATE)
+        for(var k = 0; k < YYYYMM.length; k++) {
+        	try {
+          		  var sqlStmt = snowflake.createStatement({sqlText: sqlTextOne, binds: [YYYYMM[k]]});
+          		  sqlStmt.execute();
+        	} catch(err) {
+            	throw 'Encountered error in executing query #' + k + ' \n. ' + err.message;
+        	}
+      	}
+
+      	return 'TRANSFORM.COBRAND_BENEFITFEE_INTERNAL successfully loaded.';   	
+    }
+$$; 
+  
+SELECT    f_travelers.*,CURRENT_TIMESTAMP()::TIMESTAMP_NTZ(9) AS LOAD_DTETME,SOURCECODE::VARCHAR AS REC_SRCE,SYS_INGEST_TMSP::VARCHAR AS SYS_INGEST_TMS,1::VARCHAR AS BATCH_ID,JSON_VERSION::VARCHAR AS META_VERSION,f_travelers.value:id::VARCHAR AS TRAVELER_ID  from (SELECT PARSE_JSON(PROCESSED_PNR) ,* FROM LND.LND_PNR) pj
+,lateral flatten(input => PROCESSED_PNR:travelers,outer => true)f_travelers   WHERE  PNR_ID='3ZJZY3-2022-02-27';

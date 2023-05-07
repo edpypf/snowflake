@@ -1,0 +1,71 @@
+CREATE OR REPLACE PROCEDURE SANDBOX.USR_VINCENT_A_YU.CREATECOPYSTATEMENT("begin_date" string, "end_date" string, SCHEMAFEEDLND string, SCHEMAVERSION string, P_DEBUG FLOAT)
+RETURNS string
+LANGUAGE javascript
+AS
+$$
+    function printed_date(d) {
+        return d.toISOString().split("T")[0].replaceAll("-","")
+    }
+
+    function execute_query(d) {
+        var stmt = snowflake.createStatement({
+            sqlText: "select '" + d + "' x"
+            // "copy into table from s3://test/" + d
+        });
+        var rs = stmt.execute();
+        rs.next();
+        return rs.getColumnValue(1);
+    }
+
+    function get_Dlist(bd,ed) {
+      var running_date = new Date(begin_date)
+      var last_day = new Date(end_date)
+      var total_days = (last_day - running_date) / (1000 * 60 * 60 * 24);
+      Dlist = []
+      for(var iter=0; iter<=total_days; iter++ ) {
+          //************* disable_print_out **********************//        
+          //cs.push(execute_query(printed_date(running_date)));
+          //******************************************************//        
+          Dlist.push(printed_date(running_date));
+          running_date.setDate(running_date.getDate() + 1)
+        }
+        return Dlist        
+      }
+
+    if(P_DEBUG === 1){
+    	return sqlTextOne;
+    } else {
+        // Get list of Dates and loop it to call length(Dlist) times query.
+        copyList=[]
+        dateList=get_Dlist(begin_date,end_date)
+      
+        for(var k = 0; k < dateList.length; k++) {
+        	try {
+                  var sqlTextOne = "copy into " + SCHEMAFEEDLND + ` FROM ( select $1:meta.version::varchar as JSONVERSION
+                                                      ,$1:sys_ingestion_source::varchar as SYS_INGESTION_SOURCE
+                                                      ,$1:eventTimestamp::varchar as EVENTTIMESTAMP
+                                                      , $1:processedDcsHistory::variant as PROCESSED_DCS_HIST
+                                                      ,TO_TIMESTAMP(TO_CHAR($1:eventhub_enqued_tmsp)
+                                                      ,'YYYYMMDDHH24MISSFF3') as UTC
+                                                      ,TO_TIMESTAMP(TO_CHAR($1:sys_ingest_tmsp)
+                                                      ,'YYYYMMDDHH24MISSFF3') as SYS_INGEST_TMSP
+                                                      ,$1:sys_source_name::varchar as SOURCECODE
+                                                      ,$1:processedDcsHistory:id::varchar as DCS_HIST_ID
+                                                      ,$1:processedDcsHistory:version::varchar as HIST_VERSION
+                                                      , METADATA$FILENAME AS FILENAME,METADATA$FILE_ROW_NUMBER AS FILEROW
+                                                      ,1 AS BATCH_ID 
+                                                     from'@lnd.SILVERSTRM2_SIT_STAGE_SILVER_HIST/amadeus/pnr/historical/data/`+ SCHEMAVERSION + "/sys_ingest_date=" + dateList[k] +"/)"              
+          		  var sqlStmt = snowflake.createStatement({sqlText: sqlTextOne});
+          		  copyList.push(sqlStmt.getSqlText()+'\n');
+        	} catch(err) {
+            	throw 'Encountered error in executing query #' + k + ' \n. ' + err.message;
+        	}
+      	}
+
+      	return copyList.join("; \n\n");   	
+    }   
+   
+$$;
+
+// call SANDBOX.USR_VINCENT_A_YU.CREATECOPYSTATEMENT('2020-10-01', '2020-10-04', 'RDV_PRIVATE.LND_PNR', '1_6_1', 0);
+//select get_ddl('PROCEDURE', 'SANDBOX.USR_VINCENT_A_YU.CREATECOPYSTATEMENT(  string,   string,  string,  string,   FLOAT)')

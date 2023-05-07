@@ -1,0 +1,96 @@
+// get json structure
+select DISTINCT regexp_replace(f.path, '\\[[0-9]+\\]', '[]') as "Path",
+  typeof(f.value) as "Type",
+  count(*) as "Count"
+from "IBM_SANDBOX"."PNR_STG"."STG_PNR_DATA",
+lateral flatten(PROCESSEDPNR, recursive=>true) f
+WHERE FILEROW<=100
+group by 1, 2 order by 1, 2;
+
+// 1-basic first level query
+select a.pnrid, prd.value:id
+from "IBM_REH"."PNR_STG"."STG_PNR_DATA" a
+,lateral flatten(input => processedpnr:products) as prd
+where pnrid like 'QAVQHL%';
+
+// 2-using index to see first prdSubId one in the array, and summarize using array_size
+select a.pnrid, prd.value:id, prd.value:products:collection,prd.value:products:collection[0].id,array_size(prd.value:products:collection) as NumOfSubID
+from "IBM_REH"."PNR_STG"."STG_PNR_DATA" a
+,lateral flatten(input => processedpnr:products) as prd
+where pnrid like 'QAVQHL%';
+
+// 3-similiar to the above #2, but use []
+select processedpnr, prd.value['id'] as pnrID, prd.value['products']['collection'], prd.value['products']['collection'][0].id as FirstSubID, array_size(prd.value['products']['collection']) as NumOfSubID 
+from "IBM_REH"."PNR_STG"."STG_PNR_DATA" a
+,lateral flatten(processedpnr:products) as prd
+where pnrid like 'QAVQHL%';
+
+// 4-using flatten table
+select processedpnr, value, value:id
+from "IBM_REH"."PNR_STG"."STG_PNR_DATA" a
+,table(flatten(processedpnr, 'products'))
+where pnrid like 'QAVQHL%';
+
+// 5-go further 2 levels using flatten tables
+select processedpnr, prd.value, prdsub.value, prd.value:id, prdsub.value:id
+from "IBM_REH"."PNR_STG"."STG_PNR_DATA" a
+,table(flatten(processedpnr, 'products')) AS prd
+,table(flatten(prd.value:products.collection,'')) AS prdsub
+where pnrid like 'QAVQHL%';
+
+// 6-the same as above #5 but using laterl flatten
+select a.pnrid, prd.value, prdprd.value, prdprd.value:id
+from "IBM_REH"."PNR_STG"."STG_PNR_DATA" a
+,lateral flatten(input => processedpnr:products) as prd
+,lateral flatten(input => prd.value:products.collection) as prdprd
+where pnrid like 'QAVQHL%';
+
+// 7-using get path to query first level attributes
+select get_path(processedpnr, 'products')
+        ,get_path(processedpnr, 'id')
+from "IBM_REH"."PNR_STG"."STG_PNR_DATA" a 
+where pnrid like 'QAVQHL%';
+
+// 8-aggregation of Json data by two level of IDs
+select a.pnrid, prdprd.value:id, count(1) as NumberOfSubIDs
+from "IBM_REH"."PNR_STG"."STG_PNR_DATA" a
+,lateral flatten(input => processedpnr:products) as prd
+,lateral flatten(input => prd.value:products.collection) as prdprd
+where pnrid like 'QAVQHL%'
+group by 1,2;
+
+// 9-filtering the Json by Status code to see some details
+select a.pnrid, prd.value, prdprd.value:id,prd.value:airSegment:status,prd.value:airSegment:aircraft.code::string 
+from "IBM_REH"."PNR_STG"."STG_PNR_DATA" a
+,lateral flatten(input => processedpnr:products) as prd
+,lateral flatten(input => prd.value:products.collection) as prdprd
+where pnrid like 'QAVQHL%' and prd.value:airSegment.status='HK'
+
+// 10-example for IBM to populate the Product Hub table
+SELECT UTC,SourceCode,PnrVersion,SHA2(IfNull(object1:id,'~NULL~')) AS SrcHk
+,object1:id AS Id 
+FROM (
+  SELECT F0.UTC,F0.SourceCode,F0.PnrVersion,F0.processedPnr as object0, F1.value as object1 
+      FROM PNR_STG.STG_PNR_DATA F0, 
+      lateral flatten(input => F0.processedPnr:products) F1 LIMIT 1
+) WHERE object1 IS NOT NULL;
+
+// 11-example for IBM to populate the SAT table
+SELECT UTC,SourceCode,PnrVersion,SHA2(IfNull(object1:id,'~NULL~')) AS SrcHk
+,SHA2(IfNull(object1:airSegment.aircraft.code,'~NULL~')||'|'||IfNull(object1:airSegment.bookingDateTime,'~NULL~')||'|'||IfNull(object1:airSegment.cabin,'~NULL~')||'|'||IfNull(object1:airSegment.carrierCode,'~NULL~')||'|'||IfNull(object1:airSegment.class,'~NULL~')||'|'||IfNull(object1: airSegment.isInformational,'~NULL~')||'|'||IfNull(object1:airSegment.isOpenNumber,'~NULL~')||'|'||IfNull(object1:airSegment.negotiatedSpaceBlockId,'~NULL~')||'|'||IfNull(object1:airSegment.number,'~NULL~')||'|'||IfNull(object1:airSegment.status,'~NULL~')||'|'||IfNull(object1:airSegment.suffix,'~NULL~')||'|'||IfNull(object1:id,'~NULL~')) AS HashDiff
+,object1:airSegment.aircraft.code AS IATAAircraftCode
+,object1:airSegment.bookingDateTime AS bookingDateTime
+,object1:airSegment.cabin AS cabin
+,object1:airSegment.carrierCode AS carrierCode
+,object1:airSegment.class AS class
+,object1:airSegment.isInformational AS isInformational
+,object1:airSegment.isOpenNumber AS isOpenNumber
+,object1:airSegment.negotiatedSpaceBlockId AS negotiatedSpaceBlockId
+,object1:airSegment.number AS number
+,object1:airSegment.status AS status
+,object1:airSegment.suffix AS suffix
+,object1:id AS productId 
+FROM (SELECT F0.UTC,F0.SourceCode,F0.PnrVersion,F0.processedPnr as object0, F1.value as object1 
+        FROM PNR_STG.STG_PNR_DATA F0, 
+        lateral flatten(input => F0.processedPnr:products) F1) 
+WHERE object1 IS NOT NULL AND object1:subType = 'AIR'  LIMIT 1

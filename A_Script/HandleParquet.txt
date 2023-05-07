@@ -1,0 +1,56 @@
+// from Kishitj
+list @AZURE_SILVER_PARQUET
+SELECT * FROM PNR_STG.STG_PNR_DATA
+WHERE pnrid LIKE 'QAVQHL%'
+--AND pnrversion = 4
+ORDER BY pnrversion
+
+select * from information_schema.stages
+//AZURE_SILVER_PARQUET
+
+desc file format PNR_RDV.parquet_format;
+desc stage PNR_STG.AZURE_SILVER_PARQUET;
+
+--azure://acaze2itprddatalake2.blob.core.windows.net/air-canada/Silver
+
+select pnrasrec.value:associationType::string as ass_associationType
+,pnrasrec.value:bookingIdentifier::string as ass_bookingIdentifier
+,pnrasrec.value:creation:pointOfSale.office.systemCode::string as ass_systemcode
+,processedpnr:bookingIdentifier::string as bookingidentifier
+,processedpnr:creation:comment::string as creation_comment
+,processedpnr:creation:datetime::string as creation_datetime
+,processedpnr:creation:pointOfSales:login:citycode::string as creation_citycode
+,processedpnr:creation:pointOfSales:office.id::string as creation_id
+,processedpnr:id::string as id
+from PNR_STG.STG_PNR_DATA
+,lateral flatten(input => processedpnr:associatedRecords) pnrasrec
+where pnrid like 'QAVQHL%'
+
+
+// from Saub
+list @AZURE_BLOB_PARQUET;
+select $1 from @AZURE_BLOB_PARQUET/Silver/Parquet/part-00000-028a0bdc-d5db-4a97-94ec-b3a19aa43025.c000.snappy.parquet;
+
+USE SCHEMA PNR_STG;
+
+CREATE OR REPLACE temporary TABLE JSON_TEST (MESSAGE VARIANT);
+
+COPY INTO JSON_TEST
+from @AZURE_BLOB_PARQUET/Silver/Parquet/part-00000-028a0bdc-d5db-4a97-94ec-b3a19aa43025.c000.snappy.parquet;
+
+SELECT * FROM JSON_TEST;
+SELECT MESSAGE:eventTimestamp::datetime,
+  MESSAGE:eventhub_enqued_tmsp::string,
+  value,
+  value:currentPath,
+  value:eventType,
+  value:origin,
+  value:previousPath
+FROM JSON_TEST,
+lateral flatten(input => MESSAGE:events:events);
+
+// from Kshitij
+SELECT * FROM PNR_STG.STG_PNR_DATA
+WHERE pnrid LIKE 'QAVQHL%'
+--AND pnrversion = 4
+ORDER BY pnrversion 

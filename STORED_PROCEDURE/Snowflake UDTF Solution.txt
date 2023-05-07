@@ -1,0 +1,30 @@
+The Best Practice to parse EDIFACT format data in snowflakeThe best practice is to use snowflake functions, 
+and then use table or lateral function to join
+
+CREATE OR REPLACE FUNCTION js_parse_bif_hub_2(MESSAGE VARCHAR)
+RETURNS TABLE (MSGDATE VARCHAR, MSG VARCHAR)
+LANGUAGE JAVASCRIPT
+AS '{
+    processRow: function f(row, rowWriter, context){
+        var str = row.MESSAGE;
+        var res = str.split("\\n");
+        for(var i = 0; i < res.length; i += 1) { 
+          if (res[i].substring(0,3) === "UNB") {
+             var md = res[i].split("+")[4];
+          }
+          if (res[i].substring(0,3) === "FDD") {
+             var mg = res[i].split("+")[2];
+          }       
+        } 
+       rowWriter.writeRow({MSGDATE : md, MSG: mg});
+       }
+
+//****** utilize the UDTF functions in select statement
+select * FROM TABLE(js_parse_bif_hub_1('UNB+023201:fff:dddd+023201+023201+023201chr(10)UNB+023201:fff:dddd+023201+023201+023201'))insert into SANDBOX.USR_VINCENT_A_YU.TEST_BIF
+
+
+//****** insert statement
+insert into rdv_BIF_TEST
+select V.MSGDATE, V.MSG
+FROM LND.LND_BIF T,
+LATERAL lnd.js_parse_bif_hub_2(T.BIF_MESSAGE::string) V limit 10;

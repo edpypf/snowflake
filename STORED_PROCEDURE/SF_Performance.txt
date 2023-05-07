@@ -1,0 +1,94 @@
+WITH nested_execs AS
+(
+               SELECT DISTINCT child.query_id ,
+                               child.query_text ,
+                               child.start_time ,
+                               child.end_time ,
+                               child.total_elapsed_time ,
+                               child.bytes_scanned ,
+                               child.rows_produced ,
+                               child.session_id ,
+                               child.compilation_time ,
+                               child.execution_time ,
+                               child.queued_provisioning_time ,
+                               child.queued_repair_time ,
+                               child.queued_overload_time ,
+                               child.transaction_blocked_time ,                               child.outbound_data_transfer_bytes ,
+                               child.inbound_data_transfer_bytes
+               FROM snowflake.account_usage.query_history parent
+               JOIN snowflake.account_usage.query_history child
+               ON child.start_time BETWEEN parent.start_time AND             parent.end_time
+               AND child.end_time BETWEEN parent.start_time AND             parent.end_time
+               AND parent.session_id = child.session_id
+               AND parent.query_id <> child.query_id
+               WHERE parent.start_time BETWEEN dateadd(days, -7, CURRENT_DATE()) AND             dateadd(days, 1, CURRENT_DATE()))
+//outer select to summarize the executions
+SELECT
+        regexp_substr(parent_query_text, '\\w+', 1,2) AS sproc_name ,
+        count(DISTINCT parent_id)                     AS execution_count ,
+        sum(is_failed)                                AS failure_count ,
+        sum(parent_total_elapsed_time)                AS total_execution_time ,
+        avg(parent_total_elapsed_time)                AS average_execution_time ,
+        sum(total_bytes_scanned)                      AS total_bytes_scanned ,
+        avg(total_bytes_scanned)                      AS avg_bytes_scanned ,
+        sum(total_child_execution)                    AS total_child_execution ,
+        avg(total_child_execution)                    AS avg_child_execution ,
+        sum(total_rows_produced)                      AS total_child_rows_produced ,
+        avg(total_rows_produced)                      AS avg_child_rows_produced ,
+        sum(total_compilation_time)                   AS total_child_compile_time ,
+        avg(total_compilation_time)                   AS avg_child_compilation_time ,
+        sum(total_execution_time)                     AS total_child_execution_time ,
+        avg(total_execution_time)                     AS avg_child_execution_time ,
+        sum(total_queued_provision_time)              AS total_child_queued_provision_time ,
+        avg(total_queued_provision_time)              AS total__child_queued_provision_time ,
+        sum(total_queued_repair_time)                 AS total_child_queued_repair_time ,
+        avg(total_queued_repair_time)                 AS avg_child_queued_repair_time ,
+        sum(total_queued_overload_time)               AS total_child_queued_overload_time ,
+        avg(total_queued_overload_time)               AS avg_child_queued_overload_time ,
+        sum(total_transaction_blocked_time)           AS total_child_transaction_blocked_time ,
+        avg(total_transaction_blocked_time)           AS avg_child_transaction_blocked_time ,
+        sum(total_outbound_data_transfer_bytes)       AS total_child_outbound_data_transfer_bytes ,
+        avg(total_outbound_data_transfer_bytes)       AS avg_child_outbound_data_transfer_bytes ,
+        sum(total_inbound_data_transfer_bytes)        AS total_child_inbound_data_transfer_bytes ,
+        avg(total_inbound_data_transfer_bytes)        AS avg_child_inbound_data_transfer_bytes
+FROM     (
+//subquery pulls the individual executions and perf stats for all child statements
+SELECT   parent.query_id AS parent_id ,
+                          child.query_id AS child_id ,
+                          CASE
+                                   WHEN parent.execution_status = 'FAIL' THEN 1
+                                   ELSE 0
+                          END                                           AS is_failed ,
+                          parent.start_time                                           AS parent_start_time ,
+                          parent.end_time                                           AS parent_end_time ,
+                          parent.total_elapsed_time                                           AS parent_total_elapsed_time ,
+                          parent.query_text                                           AS parent_query_text ,
+                          child.query_text                                           AS child_query_text ,
+                          child.start_time                                           AS child_start_time ,
+                          child.end_time                                           AS child_end_time ,
+                          child.total_elapsed_time                                           AS child_total_elapsed_time ,
+                          child.bytes_scanned                                           AS child_bytes_scanned ,
+                          Sum(child_bytes_scanned) OVER (partition BY parent_id)                AS total_bytes_scanned ,
+                          Sum(child_total_elapsed_time) OVER (partition BY parent_id)           AS total_child_execution ,
+                          Sum(child.rows_produced) OVER (partition BY parent_id)                AS total_rows_produced ,
+                          Sum(child.compilation_time) OVER (partition BY parent_id)             AS total_compilation_time ,
+                          Sum(child.execution_time) OVER (partition BY parent_id)               AS total_execution_time ,
+                          Sum(child.queued_provisioning_time) OVER (partition BY parent_id)     AS total_queued_provision_time ,
+                          Sum(child.queued_repair_time) OVER (partition BY parent_id)           AS total_queued_repair_time ,
+                          Sum(child.queued_overload_time) OVER (partition BY parent_id)         AS total_queued_overload_time ,
+                          Sum(child.transaction_blocked_time) OVER (partition BY parent_id)     AS total_transaction_blocked_time ,
+                          Sum(child.outbound_data_transfer_bytes) OVER (partition BY parent_id) AS total_outbound_data_transfer_bytes ,
+                          Sum(child.inbound_data_transfer_bytes) OVER (partition BY parent_id)  AS total_inbound_data_transfer_bytes
+                 FROM snowflake.account_usage.query_history parent
+                 JOIN nested_execs child
+                 ON child.start_time BETWEEN parent.start_time AND      parent.end_time
+                 AND child.end_time BETWEEN parent.start_time AND      parent.end_time
+                 AND parent.session_id = child.session_id
+                 AND parent.query_id <> child.query_id
+                 WHERE parent.query_id IN
+                          ('01a6a98a-0c03-8ab4-0000-d9c5346476a2')
+                 AND parent.query_text ilike 'call%'
+                 AND parent.start_time BETWEEN dateadd(days, -30, CURRENT_DATE()) AND      dateadd(days, 1, CURRENT_DATE())
+                 ORDER BY parent.start_time DESC,
+                          child.start_time DESC)
+GROUP BY sproc_name;

@@ -1,0 +1,227 @@
+WITH X AS (
+  SELECT PARSE_JSON($1) AS JSON_DATA
+    FROM VALUES
+           ($$
+{
+  "ADLS_LND": [
+    {
+      "TaskId": 100,
+      "TaskName": "PNR DuplicateCheck",
+      "TaskFeed": "PNR",
+      "SourceSchema": "Stage",
+      "TargetSchema": "LndSchema",
+      "Type": "DuplicateCheck",
+      "SourceTable": "/pnr/daily/data/1_11_0/sys_ingest_date=20220415/part-00004-25a78751-3084-4b66-b092-a0df211abce2.c000.snappy.parquet",
+      "TargetTable": "LND_PNR",
+      "SourceJsonPath": "$1",
+      "coalesceCol": "",
+      "SrcCol": "a.$1:processedPnr:id::string as PNR_ID,a.$1:processedPnr:version::string as PNR_VERSION",
+      "TgtCol": "PNR_ID,PNR_VERSION"
+    },
+    {
+      "TaskId": 101,
+      "TaskName": "PNR DuplicateCheck",
+      "TaskFeed": "PNR",
+      "SourceSchema": "Stage",
+      "TargetSchema": "LndSchema",
+      "Type": "UnMatchingkey",
+      "SourceTable": "/pnr/daily/data/1_11_0/sys_ingest_date=20220415/part-00004-25a78751-3084-4b66-b092-a0df211abce2.c000.snappy.parquet",
+      "TargetTable": "LND_PNR",
+      "SourceJsonPath": "$1",
+      "coalesceCol": "",
+      "SrcCol": "a.$1:processedPnr:id::string as PNR_ID,a.$1:processedPnr:version::string as PNR_VERSION",
+      "TgtCol": "PNR_ID,PNR_VERSION"
+    },
+    {
+      "TaskId": 110,
+      "TaskName": "PNR CORR DuplicateCheck",
+      "TaskFeed": "PNR_CORR",
+      "SourceSchema": "Stage",
+      "TargetSchema": "LndSchema",
+      "Type": "DuplicateCheck",
+      "SourceTable": "/pnr_corr/daily/data/1_11_0/sys_ingest_date=20220415/",
+      "TargetTable": "LND_PNR_CORR",
+      "SourceJsonPath": "$1:pnrCorrelations:dictionaries:pnrs",
+      "SrcCol": "b.value:id as pnr_id,b.value:version as pnr_version",
+      "TgtCol": "PNR_ID,PNR_VERSION",
+      "Template": "pnrCorrDupChk"
+    },
+    {
+      "TaskId": 111,
+      "TaskName": "PNR CORR DuplicateCheck",
+      "TaskFeed": "PNR_CORR",
+      "SourceSchema": "Stage",
+      "TargetSchema": "LndSchema",
+      "Type": "DuplicateCheck",
+      "SourceTable": "/pnr_corr/daily/data/1_11_0/sys_ingest_date=20220415/",
+      "TargetTable": "LND_PNR_CORR",
+      "SourceJsonPath": "$1:pnrCorrelations:dictionaries:pnrs",
+      "SrcCol": "b.value:id as pnr_id,b.value:version as pnr_version",
+      "TgtCol": "PNR_ID,PNR_VERSION",
+      "Template": "pnrCorrDupChk"
+    }
+  ],
+  "LND_RDV": [
+    {
+      "TaskId": 200,
+      "TaskName": "Hub_FlightGroup Raw Data Vault Load",
+      "Type": "HUB",
+      "SourceTable": "LND_PNR",
+      "TargetTable": "HUB_PNR",
+      "SrcJsonPath": [
+        "processedPnr"
+      ],
+      "SrcHkCol": "..id,id",
+      "SrcBusiCol": "..id,id",
+      "TgtHkCol": "FlightGroupHashKey",
+      "TgtBusiCol": "pnrid,id"
+    },
+    {
+      "TaskId": 200.1,
+      "TaskName": "Sat_FlightGroup Raw Data Vault Load",
+      "RunDependency": 0,
+      "Type": "Sat",
+      "SourceTable": "LND_PNR",
+      "TargetTable": "SAT_PNR",
+      "SrcJsonPath": [
+        "processedPnr"
+      ],
+      "SrcHkCol": "..id,id",
+      "SrcBusiCol": "..id,id,flightGroupType,type",
+      "TgtHkCol": "FlightGroupHashKey",
+      "TgtBusiCol": "PnrId,FlightGroupId,flightGroupType,type"
+    }
+  ]
+}
+            $$))
+select key, json_data  from X
+
+
+select * from table(flatten(input => parse_json(
+'{
+  "ADLS_LND": [
+    {
+      "TaskId": 100,
+      "TaskName": "PNR DuplicateCheck",
+      "TaskFeed": "PNR",
+      "SourceSchema": "Stage",
+      "TargetSchema": "LndSchema",
+      "Type": "DuplicateCheck",
+      "SourceTable": "/pnr/daily/data/1_11_0/sys_ingest_date=20220415/part-00004-25a78751-3084-4b66-b092-a0df211abce2.c000.snappy.parquet",
+      "TargetTable": "LND_PNR",
+      "SourceJsonPath": "$1",
+      "coalesceCol": "",
+      "SrcCol": "a.$1:processedPnr:id::string as PNR_ID,a.$1:processedPnr:version::string as PNR_VERSION",
+      "TgtCol": "PNR_ID,PNR_VERSION"
+    },
+    {
+      "TaskId": 101,
+      "TaskName": "PNR DuplicateCheck",
+      "TaskFeed": "PNR",
+      "SourceSchema": "Stage",
+      "TargetSchema": "LndSchema",
+      "Type": "UnMatchingkey",
+      "SourceTable": "/pnr/daily/data/1_11_0/sys_ingest_date=20220415/part-00004-25a78751-3084-4b66-b092-a0df211abce2.c000.snappy.parquet",
+      "TargetTable": "LND_PNR",
+      "SourceJsonPath": "$1",
+      "coalesceCol": "",
+      "SrcCol": "a.$1:processedPnr:id::string as PNR_ID,a.$1:processedPnr:version::string as PNR_VERSION",
+      "TgtCol": "PNR_ID,PNR_VERSION"
+    },
+    {
+      "TaskId": 110,
+      "TaskName": "PNR CORR DuplicateCheck",
+      "TaskFeed": "PNR_CORR",
+      "SourceSchema": "Stage",
+      "TargetSchema": "LndSchema",
+      "Type": "DuplicateCheck",
+      "SourceTable": "/pnr_corr/daily/data/1_11_0/sys_ingest_date=20220415/",
+      "TargetTable": "LND_PNR_CORR",
+      "SourceJsonPath": "$1:pnrCorrelations:dictionaries:pnrs",
+      "SrcCol": "b.value:id as pnr_id,b.value:version as pnr_version",
+      "TgtCol": "PNR_ID,PNR_VERSION",
+      "Template": "pnrCorrDupChk"
+    },
+    {
+      "TaskId": 111,
+      "TaskName": "PNR CORR DuplicateCheck",
+      "TaskFeed": "PNR_CORR",
+      "SourceSchema": "Stage",
+      "TargetSchema": "LndSchema",
+      "Type": "DuplicateCheck",
+      "SourceTable": "/pnr_corr/daily/data/1_11_0/sys_ingest_date=20220415/",
+      "TargetTable": "LND_PNR_CORR",
+      "SourceJsonPath": "$1:pnrCorrelations:dictionaries:pnrs",
+      "SrcCol": "b.value:id as pnr_id,b.value:version as pnr_version",
+      "TgtCol": "PNR_ID,PNR_VERSION",
+      "Template": "pnrCorrDupChk"
+    }
+  ],
+  "LND_RDV": [
+    {
+      "TaskId": 200,
+      "TaskName": "Hub_FlightGroup Raw Data Vault Load",
+      "Type": "HUB",
+      "SourceTable": "LND_PNR",
+      "TargetTable": "HUB_PNR",
+      "SrcJsonPath": [
+        "processedPnr"
+      ],
+      "SrcHkCol": "..id,id",
+      "SrcBusiCol": "..id,id",
+      "TgtHkCol": "FlightGroupHashKey",
+      "TgtBusiCol": "pnrid,id"
+    },
+    {
+      "TaskId": 200.1,
+      "TaskName": "Sat_FlightGroup Raw Data Vault Load",
+      "RunDependency": 0,
+      "Type": "Sat",
+      "SourceTable": "LND_PNR",
+      "TargetTable": "SAT_PNR",
+      "SrcJsonPath": [
+        "processedPnr"
+      ],
+      "SrcHkCol": "..id,id",
+      "SrcBusiCol": "..id,id,flightGroupType,type",
+      "TgtHkCol": "FlightGroupHashKey",
+      "TgtBusiCol": "PnrId,FlightGroupId,flightGroupType,type"
+    }
+  ]
+}'
+))) f;
+WITH X AS (
+  SELECT PARSE_JSON($1) AS JSON_DATA
+    FROM VALUES
+           ($$
+[
+  {
+    "emailIdentities": {
+      "smtp_mailfrom": "fake@email.com"
+    },
+    "method": "spf",
+    "result": "pass"
+  },
+  {
+    "method": "dkim",
+    "propspec": {
+      "header_d": "fake.dkim.domain.com",
+      "header_s": "342525"
+    },
+    "result": "pass"
+  },
+  {
+    "emailIdentities": {
+      "header_from": "otherdomain.com"
+    },
+    "method": "dmarc",
+    "result": "pass"
+  }
+]
+            $$)
+)
+SELECT CONVERT_JSON(X.JSON_DATA)['dkim']::VARCHAR AS METHOD_DKIM
+      ,CONVERT_JSON(X.JSON_DATA)['dmarc']::VARCHAR AS METHOD_DMARC
+      ,CONVERT_JSON(X.JSON_DATA)['spf']::VARCHAR AS METHOD_SPF
+  FROM X
+;

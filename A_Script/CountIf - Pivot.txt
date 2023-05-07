@@ -1,0 +1,18 @@
+-- CountIf
+select pnrbookingchannel,
+count_if(effectivedatesid=20210531) count_PNR_May_31_2021,
+count_if(effectivedatesid=20210601) count_PNR_June_01_2021
+from "IBM_REH"."PNR_EDW"."FACT_PNR_BOOKING_SEGMENT"
+where substr(segmentlocaldeparturedatesid,1,6)=202110
+and activestatusflag=1 and informationalflag=0
+group by pnrbookingchannel order by pnrbookingchannel;
+
+-- Pivot to count and show group by dimension in columns
+select --a1.monthname, a1.segmentdepartureairportcode, count(a1.segment) 
+* from (
+select bks.segment, bks.segmentdepartureairportcode, d.monthname
+from  "IBM_REH"."PNR_EDW"."FACT_PNR_BOOKING_SEGMENT" bks, dim_date d
+where bks.segmentlocaldeparturedatesid=d.datesid
+and inactivesegmentflag=0 and activestatusflag=1) as a1
+--group by 1,2
+pivot(count(a1.segment) for a1.segmentdepartureairportcode in ('YYZ','YVR'))

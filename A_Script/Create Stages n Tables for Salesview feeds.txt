@@ -1,0 +1,110 @@
+create or replace stage TEST.salesview_stage
+  storage_integration = AMADEUSINV
+  url = 'azure://acaze2itdevdatalake2.blob.core.windows.net/canada/air-canada/Silver/amadeus/'
+  /pnr/delta/data/sys_ingest_date=20210601/version=1.11.0
+  file_format = test.PNR_PARQUET_FORMAT;
+  
+list @TEST.salesview_stage//pnr/daily/data/1_9_0/sys_ingest_date=20201108/;
+list @TEST.salesview_stage//dcs_bag/daily/data/1_3_0/
+list @TEST.salesview_stage//dcs_bag_corr/daily/data/1_3_0/
+list @TEST.salesview_stage//dcs_hist/daily/data/1_0_5/sys_ingest_date=20201108/
+list @TEST.salesview_stage//dcs_pax/daily/data/1_5_0/sys_ingest_date=20201029/
+list @TEST.salesview_stage//dcs_pax_corr/daily/data/1_5_0/sys_ingest_date=20201108/
+list @TEST.salesview_stage//inv/daily/data/1_1_2/sys_ingest_date=20201108/
+list @TEST.salesview_stage//inv_corr/daily/data/1_1_2/sys_ingest_date=20201108/
+list @TEST.salesview_stage//pnr/daily/data/1_9_0/sys_ingest_date=20201108/
+list @TEST.salesview_stage//pnr_corr/daily/data/1_9_0/sys_ingest_date=20201108/
+list @TEST.salesview_stage//skd/daily/data/1_3_0/sys_ingest_date=20201108/
+list @TEST.salesview_stage//skd_corr/daily/data/1_3_0/sys_ingest_date=20201108/
+list @TEST.salesview_stage//tkt/daily/data/3_0_0/sys_ingest_date=20201108/
+list @TEST.salesview_stage//tkt_corr/daily/data/3_0_0/sys_ingest_date=20201108/
+
+select get_ddl('TABLE','PNR_STG.STG_PNR_DATA')
+drop table TEST.SVR_PNR_FEED
+create or replace TABLE TEST.SVR_PNR_FEED (
+    FEED_NAME VARCHAR(15),
+	JSONVERSION VARCHAR(16777216),
+	SYS_INGESTION_SOURCE VARCHAR(16777216),
+	EVENTTIMESTAMP VARCHAR(16777216),
+	PROCESSEDPNR VARIANT,
+	UTC TIMESTAMP_NTZ(9),
+	SYS_INGEST_TMSP TIMESTAMP_NTZ(9),
+	SOURCECODE VARCHAR(16777216),
+	PNRID VARCHAR(16777216),
+	PNRVERSION VARCHAR(16777216),
+	FILENAME VARCHAR(16777216),
+	FILEROW NUMBER(38,0)
+);
+
+select $1 
+//              $1:sys_ingestion_source, 
+//              $1:eventTimestamp, 
+//              parse_json($1:original_message):processedPnr as processedPnr, 
+//              dateadd(microsecond,parse_json($1:original_message):processedPnr.version,TO_TIMESTAMP(TO_CHAR($1:eventhub_enqued_tmsp),'YYYYMMDDHH24MISSFF3')) as utc, 
+//              TO_TIMESTAMP(TO_CHAR($1:sys_ingest_tmsp),'YYYYMMDDHH24MISSFF3'), 
+//              $1:sys_source_name, 
+//              parse_json($1:original_message):processedPnr.id, 
+//              parse_json($1:original_message):processedPnr.version, 
+//              METADATA$FILENAME, 
+//              METADATA$FILE_ROW_NUMBER 
+          from //@TEST.salesview_stage//pnr/daily/data/1_9_0/sys_ingest_date=20201108/
+               @TEST.salesview_stage//pnr_corr/daily/data/1_9_0/sys_ingest_date=20201108/ 
+              //@TEST.salesview_stage//dcs_bag/daily/data/1_3_0/
+              //@TEST.salesview_stage//dcs_bag_corr/daily/data/1_3_0/
+              //@TEST.salesview_stage//dcs_hist/daily/data/1_0_5/sys_ingest_date=20201108/
+              //@TEST.salesview_stage//dcs_pax/daily/data/1_5_0/sys_ingest_date=20201029/
+              //@TEST.salesview_stage//dcs_pax_corr/daily/data/1_5_0/sys_ingest_date=20201108/
+              //@TEST.salesview_stage//inv/daily/data/1_1_2/sys_ingest_date=20201108/
+              //@TEST.salesview_stage//inv_corr/daily/data/1_1_2/sys_ingest_date=20201108/
+              //@TEST.salesview_stage//skd/daily/data/1_3_0/sys_ingest_date=20201108/
+              //@TEST.salesview_stage//skd_corr/daily/data/1_3_0/sys_ingest_date=20201108/
+              //@TEST.salesview_stage//tkt/daily/data/3_0_0/sys_ingest_date=20201108/
+              @TEST.salesview_stage//tkt_corr/daily/data/3_0_0/sys_ingest_date=20201108/
+          
+DROP table TEST.SALESVIEW_FEEDS
+
+COPY INTO TEST.SVR_PNR_FEED FROM 
+          (select 'TICKET_CORR' FEEDNAME, $1:version,
+              $1:sys_ingestion_source, 
+              $1:eventTimestamp, 
+              parse_json($1:original_message):processedPnr as processedPnr, 
+              dateadd(microsecond,parse_json($1:original_message):processedPnr.version,TO_TIMESTAMP(TO_CHAR($1:eventhub_enqued_tmsp),'YYYYMMDDHH24MISSFF3')) as utc, 
+              TO_TIMESTAMP(TO_CHAR($1:sys_ingest_tmsp),'YYYYMMDDHH24MISSFF3'), 
+              $1:sys_source_name, 
+              parse_json($1:original_message):processedPnr.id, 
+              parse_json($1:original_message):processedPnr.version, 
+              METADATA$FILENAME, 
+              METADATA$FILE_ROW_NUMBER 
+          from @TEST.salesview_stage//pnr/daily/data/1_9_0/sys_ingest_date=20201108/
+          ) pattern ='.*[.]parquet' 
+          file_format = (Type = PARQUET) 
+          ON_ERROR = SKIP_FILE
+
+create or replace TABLE TEST.SVR_OTHER_FEEDS (
+    FEED_NAME VARCHAR(15),
+	MESSAGE VARCHAR(16777216)
+);
+
+COPY INTO TEST.SVR_OTHER_FEEDS FROM 
+          (select 'TICKET_CORR' FEEDNAME, $1 
+          from  //@TEST.salesview_stage//pnr/daily/data/1_9_0/sys_ingest_date=20201108/
+              //@TEST.salesview_stage//pnr_corr/daily/data/1_9_0/sys_ingest_date=20201108/ 
+              //@TEST.salesview_stage//dcs_bag/daily/data/1_3_0/
+              //@TEST.salesview_stage//dcs_bag_corr/daily/data/1_3_0/
+              //@TEST.salesview_stage//dcs_hist/daily/data/1_0_5/sys_ingest_date=20201108/
+              //@TEST.salesview_stage//dcs_pax/daily/data/1_5_0/sys_ingest_date=20201029/
+              //@TEST.salesview_stage//dcs_pax_corr/daily/data/1_5_0/sys_ingest_date=20201108/
+              //@TEST.salesview_stage//inv/daily/data/1_1_2/sys_ingest_date=20201108/
+              //@TEST.salesview_stage//inv_corr/daily/data/1_1_2/sys_ingest_date=20201108/
+              //@TEST.salesview_stage//skd/daily/data/1_3_0/sys_ingest_date=20201108/
+              //@TEST.salesview_stage//skd_corr/daily/data/1_3_0/sys_ingest_date=20201108/
+              //@TEST.salesview_stage//tkt/daily/data/3_0_0/sys_ingest_date=20201108/
+              @TEST.salesview_stage//tkt_corr/daily/data/3_0_0/sys_ingest_date=20201108/
+          ) pattern ='.*[.]parquet' 
+          file_format = (Type = PARQUET) 
+          ON_ERROR = SKIP_FILE          
+          
+SELECT FEED_NAME, COUNT(1) 
+FROM "IBM_SANDBOX"."PNR_STG"."STG_PNR_DATA" 
+GROUP BY 1
+          

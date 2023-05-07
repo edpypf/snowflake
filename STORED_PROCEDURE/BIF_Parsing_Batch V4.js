@@ -1,0 +1,101 @@
+CREATE OR REPLACE PROCEDURE "BIF_PARSING_BATCH"("P_DEBUG" FLOAT, "BATCH_SIZE" FLOAT, "CHUNK_SIZE" FLOAT)
+RETURNS VARCHAR(16777216)
+LANGUAGE JAVASCRIPT
+EXECUTE AS CALLER
+AS 
+$$
+    //**************************************************************************************
+    //* Purpose:    This stored procedure will process LND_BIF
+    //*
+    //*
+    //* Date          Author              Desc
+    //**************************************************************************************
+	//* 2022-08-26    Vincent             Performance Test of SnowProcedure String Process
+    //************************************************************************************** 
+    //*
+    //*Sample Execution
+    //*CALL LND.BIF_PARSING
+    //**************************************************************************************
+
+    var Rset = [];
+    
+    var sqlTextCount = `select count(1) as CNT from LND.LND_BIF`;
+
+    // Function to get the Max count of the table, which used as batch end of looping
+    function get_rowcount(sqlTextCount) {
+        // read from source table
+        var stmt = snowflake.createStatement({sqlText: sqlTextCount});
+        var rs = stmt.execute();
+        rs.next()
+        return rs.getColumnValue(1);
+    }
+    
+    // Function to Parse the Message
+    function get_parsing_output(msg) {
+      var v_TAG = msg.split("\n")[0];
+      var v_MSG = msg.split("\n")[1];
+      return [v_TAG, v_MSG];
+    }
+    
+    // Function to Write into table in Batches
+    function ins_batch(sqlTextOne_read) {
+        // read from source table
+        var stmt = snowflake.createStatement({sqlText: sqlTextOne_read});
+        var rs = stmt.execute();
+        while(rs.next())
+        {
+           v_TAG =  get_parsing_output(rs.getColumnValue(1))[0];
+           v_MSG =  get_parsing_output(rs.getColumnValue(1))[1];
+           Rset.push([v_TAG, v_MSG])
+        } 
+
+        // write into target table SANDBOX.USR_VINCENT_A_YU.TEST_BIF                  
+        try {
+              // Generates (?,?,?) if there are 2 cols per row
+              var row_bind = "(" +  Array(Rset[0].length).fill("?").join(',') + ")"; 
+              while (Rset.length > 0) {
+                // Consume upto 100 rows at a time
+                var dataChunk = Rset.splice(0, CHUNK_SIZE);
+                 // Generate (?,?,?),(?,?,?),[...] upto a 100 times
+                 var params = Array(dataChunk.length).fill(row_bind).join(",");
+
+                 // Place the bind params into the query
+                 var statement = `INSERT INTO SANDBOX.USR_VINCENT_A_YU.TEST_BIF (TAG, MSG) VALUES ` + params;
+
+                 // Prepare a statement with a flat stream of row/col data sent along
+                 var stmt = snowflake.createStatement({
+                   sqlText: statement,
+                   binds: dataChunk.flat()});
+                 stmt.execute();
+               }
+           } catch(err) {
+              throw 'Encountered error in writing into table' + v_MSG + 'error is ' + err.message;
+           }        
+    }
+    
+    // Main Program
+    if(P_DEBUG === 1){
+    	return sqlTextOne_read;
+    } else {
+            try {
+                    var maxcount = parseInt(get_rowcount(sqlTextCount)); 
+                    for(var k = BATCH_SIZE; k < maxcount; k += BATCH_SIZE) { 
+                        var sqlTextOne_read = `select BIF_MESSAGE as mess from LND.LND_BIF limit `+ BATCH_SIZE + ` offset ` + k;
+                        ins_batch(sqlTextOne_read);
+                       }
+                } catch(err) {
+                          throw 'Encountered error in executing sqlTextOne.' + err.message;
+                       }
+      	    }
+
+      	return 'BIF Run successfully loaded.';
+$$;
+
+truncate table SANDBOX.USR_VINCENT_A_YU.TEST_BIF;
+call  lnd.BIF_PARSING_BATCH(0,10000, 1000);
+select   * from SANDBOX.USR_VINCENT_A_YU.TEST_BIF;
+
+truncate table SANDBOX.USR_VINCENT_A_YU.TEST_BIF;
+call  lnd.BIF_PARSING_BATCH(0,10000, 100);
+select    * from SANDBOX.USR_VINCENT_A_YU.TEST_BIF;
+ 

@@ -1,0 +1,1379 @@
+CREATE OR REPLACE FUNCTION "XML2JSON"("XML_STRING" VARCHAR(16777216))
+RETURNS VARIANT
+LANGUAGE PYTHON
+RUNTIME_VERSION = '3.8'
+PACKAGES = ('xmltodict')
+HANDLER = 'xml2json'
+AS '
+import xmltodict
+import json
+
+def xml2json(xml_string):
+    return xmltodict.parse(xml_string)
+    ## return xmltodict.parse(xml_string, process_namespaces=True)
+';
+/************************************************************************************************/
+
+CREATE OR REPLACE FUNCTION "TEST_STAR"("FDR" VARCHAR(16777216), "FDD" VARCHAR(16777216), "APD" VARCHAR(16777216))
+RETURNS TABLE ("A" VARCHAR(16777216), "B" VARCHAR(16777216), "C" VARCHAR(16777216))
+LANGUAGE JAVASCRIPT
+AS '
+   {
+    processRow: function f(row, rowWriter, context){
+       var x="madhu";
+       var y="babu";
+       var z="kal";
+       rowWriter.writeRow({a:x,b:y,c:z});
+       }
+    }
+    
+    ';
+/************************************************************************************************/
+
+CREATE OR REPLACE FUNCTION "B2S"("RULEEXPRESSION" BOOLEAN, "COLUMNNAME" VARCHAR(16777216), "RULE" VARCHAR(16777216))
+RETURNS VARCHAR(16777216)
+LANGUAGE SQL
+AS '
+       select ''{ "reason": "'' || coalesce(split(rule,''^^'')[0],''N/A'') || ''",\\r\\n"columnName": "'' || columnName  || ''",\\r\\n"ruleExpression": "'' || coalesce(split(rule,''^^'')[1],''N/A'')  || ''",\\r\\n"passed":'' || ( coalesce(ruleExpression,false)) || ''}'' 
+   ';
+/************************************************************************************************/
+
+CREATE OR REPLACE FUNCTION "UDF_JSON_MASK"("PARAM" ARRAY, "JSON" VARCHAR(16777216))
+RETURNS VARCHAR(16777216)
+LANGUAGE JAVASCRIPT
+AS ' var newstring = JSON;
+var regpattern = ''":"([^"]*)"'';
+finalstring = '''';
+
+var replacevalue = ''***********'';
+var arrayLength = PARAM.length;
+for (var i = 0; i < arrayLength; i++) {
+patternnow = ''"''+PARAM[i] + regpattern;
+newRegExp = new RegExp(patternnow,"g");
+
+searchstring = ''"'' + PARAM[i] + ''":'';
+s = newstring.indexOf(searchstring) + searchstring.length+1;
+e = newstring.indexOf(''"'',s);
+t = newstring.substr(s,e-s);
+
+var hash = 0;
+for (ii = 0; ii < t.length; ii++) {
+char = t.charCodeAt(ii);
+hash = ((hash << 5) - hash) + char;
+hash = hash & hash;
+}
+
+
+//replacevalue = ''"''+PARAM[i]+''":"''+hash+''"'';
+
+
+replacevalue = ''"''+PARAM[i]+''":"**********"'';
+
+rplstring = newstring.replace(newRegExp,replacevalue);
+newstring = rplstring;
+finalstring = newstring;
+
+}
+return finalstring;
+';
+/************************************************************************************************/
+
+CREATE OR REPLACE FUNCTION "TEST_LARGE_JSON_PARSER"()
+RETURNS TABLE ("OUTPUT" VARCHAR(16777216))
+LANGUAGE PYTHON
+RUNTIME_VERSION = '3.8'
+PACKAGES = ('pandas','pyarrow')
+HANDLER = 'split'
+IMPORTS = ('@EDW_DEV.LND.SILVERSTRM2_STAGE/compensation/daily/sys_ingest_date=20220105/part-00796-115a958a-badb-4024-9175-32848144c06a.c000.snappy.parquet')
+AS '
+import pyarrow.parquet as pq
+import pandas
+import json
+import os
+import sys
+class split:
+    def process(self):   
+        data=pq.read_table(os.path.join(sys._xoptions["snowflake_import_directory"], ''part-00796-115a958a-badb-4024-9175-32848144c06a.c000.snappy.parquet''))
+        output = json.loads(data.to_pandas().to_json(orient = ''records''))
+        yield(output)
+        
+';
+/************************************************************************************************/
+
+CREATE OR REPLACE FUNCTION "FNGET_FULLTEMPTABLENAME"("P_FULLTABLENAME" VARCHAR(16777216))
+RETURNS VARCHAR(16777216)
+LANGUAGE SQL
+AS '
+    SELECT CASE WHEN (select split_part(P_FULLTABLENAME,''.'',1)) IS NULL OR (select split_part(P_FULLTABLENAME,''.'',1)) = '''' 
+    THEN '''' ELSE (select split_part(P_FULLTABLENAME,''.'',1)) END 
+|| ''.'' || ''Temp_'' ||  (select split_part(P_FULLTABLENAME,''.'',2))
+  ';
+/************************************************************************************************/
+
+CREATE OR REPLACE FUNCTION "JS_PARSE_BIF_HUB_2"("MESSAGE" VARCHAR(16777216))
+RETURNS TABLE ("MSGDATE" VARCHAR(16777216), "MSG" VARCHAR(16777216))
+LANGUAGE JAVASCRIPT
+AS '{
+    processRow: function f(row, rowWriter, context){
+        var str = row.MESSAGE;
+        var res = str.split("\\n");
+        for(var i = 0; i < res.length; i += 1) { 
+          if (res[i].substring(0,3) === "UNB") {
+             var md = res[i].split("+")[4];
+          }
+          if (res[i].substring(0,3) === "FDD") {
+             var mg = res[i].split("+")[2];
+          }        
+        } 
+       rowWriter.writeRow({MSGDATE : md, MSG: mg});
+       }
+    }';
+/************************************************************************************************/
+
+CREATE OR REPLACE FUNCTION "RANGE_TO_VALUES"("PREFIX" VARCHAR(16777216), "RANGE_START" FLOAT, "RANGE_END" FLOAT)
+RETURNS TABLE ("IP_ADDRESS" VARCHAR(16777216))
+LANGUAGE JAVASCRIPT
+AS '
+      {
+        processRow: function f(row, rowWriter, context)  {
+          var suffix = row.RANGE_START;
+          while (suffix <= row.RANGE_END)  {
+            rowWriter.writeRow( {IP_ADDRESS: row.PREFIX + "." + suffix} );
+            suffix = suffix + 1;
+            }
+          }
+      }
+      ';
+/************************************************************************************************/
+
+CREATE OR REPLACE FUNCTION "HASH"("PARAM" VARCHAR(16777216))
+RETURNS VARCHAR(16777216)
+LANGUAGE SQL
+AS '
+  sha2(cast(param as string),256)
+';
+/************************************************************************************************/
+
+CREATE OR REPLACE FUNCTION "SAT_SEG_CLS_COUNTERS"("SEG_CLS_COUNTERS" VARCHAR(16777216))
+RETURNS TABLE ("FLT_HASHKEY" VARCHAR(16777216), "HASH_DIFF" VARCHAR(16777216), "SEGMENT_SEQUENCE" VARCHAR(16777216), "SEGMENT_DEPARTURE_LOC" VARCHAR(16777216), "SEGMENT_ARRIVAL_LOC" VARCHAR(16777216), "SEGMENT_DEPARTURE_DATETIME" VARCHAR(16777216), "SEGMENT_ARRIVAL_DATETIME" VARCHAR(16777216), "PARTNER_CODESHARE_INFO1" VARCHAR(16777216), "PARTNER_CODESHARE_INFO2" VARCHAR(16777216), "SEGMENT_STATUS_YES" VARCHAR(16777216), "SEGMENT_STATUS_NO" VARCHAR(16777216), "CABIN_CODE" VARCHAR(16777216), "BOOKING_CLASS_CODE" VARCHAR(16777216), "CLASS_AVS" VARCHAR(16777216), "SUBLCASS_NUMBER_INDICATOR" VARCHAR(16777216), "CLASS_BOARDED_PNR" VARCHAR(16777216), "CLASS_NOSHOW" VARCHAR(16777216), "CLASS_GROUPNOSHOW" VARCHAR(16777216), "CLASS_OFFLOADED_PNR" VARCHAR(16777216), "CLASS_GROUPBOARDED" VARCHAR(16777216), "CLASS_COMMERICAL_STANDBY_BOARDED" VARCHAR(16777216), "CLASS_COMMERICAL_STANDBY_NOBOARDED" VARCHAR(16777216), "CLASS_UPGRADE_IN" VARCHAR(16777216), "CLASS_UPGRADE_OUT" VARCHAR(16777216), "CLASS_DOWNGRADE_IN" VARCHAR(16777216), "CLASS_DOWNGRADE_OUT" VARCHAR(16777216), "CLASS_GOSHOW_PNR" VARCHAR(16777216), "CLASS_STAFF_STANDBY_BOARD" VARCHAR(16777216), "CLASS_STAFF_STANDBY_NO_BOARD" VARCHAR(16777216), "CLASS_VOLUNTARY_OFFLOAD" VARCHAR(16777216), "CLASS_DENIED_BOARDING" VARCHAR(16777216), "CLASS_NO_REC" VARCHAR(16777216), "CLASS_AUTHORISATION" VARCHAR(16777216), "CLASS_BOOKING_CANCEL_COUNT" VARCHAR(16777216), "CLASS_GROUPBOOKING_CANCELLATIONS" VARCHAR(16777216), "CLASS_GROUP_ASSIGNED_NAME" VARCHAR(16777216), "CLASS_EXPECTED_TO_BOARD" VARCHAR(16777216), "CLASS_NESTED_SEGMENT_LIMIT" VARCHAR(16777216), "CLASS_OWN_AVAILABILITY" VARCHAR(16777216), "CLASS_NEGO_BOOKING" VARCHAR(16777216), "CLASS_SEGMENT_LIMIT_STANDALONE" VARCHAR(16777216), "CLASS_CLASS_SBC_LIMIT_THRESHOLD" VARCHAR(16777216), "CLASS_CLASS_SBC_LIMIT_PERCENTAGE" VARCHAR(16777216), "CLASS_SEGMENTLIMIT" VARCHAR(16777216), "CLASS_SEGMENT_LIMIT_CONNECTING" VARCHAR(16777216), "CLASS_NETTED_PROTECTION" VARCHAR(16777216), "CLASS_TICKETED_PASSANGERS" VARCHAR(16777216), "CLASS_TOTAL_OVERBOOKING_PERCENTAGE" VARCHAR(16777216), "CLASS_SBC_BOOLEAN_EXPRESSION_ID" VARCHAR(16777216), "CLASS_SBC_QUANTITY" VARCHAR(16777216), "CLASS_SBC_EFFECTIVE_DATE" VARCHAR(16777216), "CLASS_SBC_DISCONTINUE_DATE" VARCHAR(16777216), "CLASS_SBC_FLAG" VARCHAR(16777216), "CLASS_SBC_MIN" VARCHAR(16777216), "CLASS_SBC_MIN_NEST_TYPE" VARCHAR(16777216), "CLASS_SBC_MIN_NEST_REFERENCE" VARCHAR(16777216), "CLASS_SBC_MAX" VARCHAR(16777216), "CLASS_SBC_MAX_NEST_TYPE" VARCHAR(16777216), "CLASS_SBC_MAX_NEST_REFERENCE" VARCHAR(16777216), "CLASS_SBC_UPGRADE" VARCHAR(16777216), "CLASS_SBC_LOW_NOTIFICATION_LEVEL" VARCHAR(16777216), "CLASS_SBC_HIGH_NOTIFICATION_LEVEL" VARCHAR(16777216), "CLASS_SBC_PARENT_SUBCLASSID" VARCHAR(16777216), "CLASS_SBC_NETTED_PROTECTION" VARCHAR(16777216), "CLASS_SBC_WAITLIST_MAX" VARCHAR(16777216), "CLASS_SBC_WAITLIST_MAX_PERCENTAGE_OF_AU" VARCHAR(16777216), "CLASS_SBC_PROFILE_TYPE" VARCHAR(16777216), "CLASS_SBC_PROFILE_NAME" VARCHAR(16777216), "CLASS_SBC_NOSHOW_PERCENTAGE" VARCHAR(16777216), "CLASS_SBC_OVERBOOKING_PERCENTAGE" VARCHAR(16777216), "CLASS_SBC_BOOKINGS_COUNTER" VARCHAR(16777216), "CLASS_SBC_GROUP_BOOKINGS_COUNTER" VARCHAR(16777216), "CLASS_SBC_GROUP_PENDING_COUNTER" VARCHAR(16777216), "CLASS_SBC_GROUP_WAITLIST_COUNTER" VARCHAR(16777216), "CLASS_SBC_WAITLIST_COUNTER" VARCHAR(16777216), "CLASS_SBC_EXPECTED_TO_BOARD" VARCHAR(16777216), "CLASS_SBC_NEGO_ALLOTED_SPACE" VARCHAR(16777216), "CLASS_SBC_AVS_STATUS" VARCHAR(16777216), "CLASS_SBC_AVAIL_COUNTERS" VARCHAR(16777216), "CLASS_SBC_NET_CLASS_AVAILABILITY" VARCHAR(16777216), "CLASS_SBC_SEGMENT_AVAILABILITY" VARCHAR(16777216), "CLASS_SBC_NET_REVENUE_AVAILABILITY" VARCHAR(16777216), "CLASS_SBC_CONTROLLED_AVAILABILITY" VARCHAR(16777216), "CLASS_MOVEABLE_CURTAIN_SLS" VARCHAR(16777216), "CLASS_MOVEABLE_CURTAIN_SLC" VARCHAR(16777216), "MESSAGE_DATETIME" VARCHAR(16777216), "POST_DATE" VARCHAR(16777216), "REC_SRCE" VARCHAR(16777216))
+LANGUAGE JAVASCRIPT
+AS '
+{
+processRow: function f(row, rowWriter, context){
+
+    
+function get_seg_cls_counters_values(section){
+    var output={};
+    var key_value={};
+    const columns=["SEGMENT_DEPARTURE_LOC","SEGMENT_ARRIVAL_LOC","SEGMENT_DEPARTURE_DATETIME","SEGMENT_ARRIVAL_DATETIME","PARTNER_CODESHARE_INFO1","PARTNER_CODESHARE_INFO1","SEGMENT_STATUS_YES","SEGMENT_STATUS_NO","CABIN_CODE","BOOKING_CLASS_CODE","CLASS_AVS","SUBLCASS_NUMBER_INDICATOR","CLASS_BOARDED_PNR","CLASS_NOSHOW","CLASS_GROUPNOSHOW","CLASS_OFFLOADED_PNR","CLASS_GROUPBOARDED","CLASS_COMMERICAL_STANDBY_BOARDED","CLASS_COMMERICAL_STANDBY_NOBOARDED","CLASS_UPGRADE_IN","CLASS_UPGRADE_OUT","CLASS_DOWNGRADE_IN","CLASS_DOWNGRADE_OUT","CLASS_GOSHOW_PNR","CLASS_STAFF_STANDBY_BOARD","CLASS_STAFF_STANDBY_NO_BOARD","CLASS_VOLUNTARY_OFFLOAD","CLASS_DENIED_BOARDING","CLASS_NO_REC","CLASS_AUTHORISATION","CLASS_BOOKING_CANCEL_COUNT","CLASS_GROUPBOOKING_CANCELLATIONS","CLASS_GROUP_ASSIGNED_NAME","CLASS_EXPECTED_TO_BOARD","CLASS_NESTED_SEGMENT_LIMIT","CLASS_OWN_AVAILABILITY","CLASS_NEGO_BOOKING","CLASS_SEGMENT_LIMIT_STANDALONE","CLASS_CLASS_SBC_LIMIT_THRESHOLD","CLASS_CLASS_SBC_LIMIT_PERCENTAGE","CLASS_SEGMENTLIMIT","CLASS_SEGMENT_LIMIT_CONNECTING","CLASS_NETTED_PROTECTION","CLASS_TICKETED_PASSANGERS","CLASS_TOTAL_OVERBOOKING_PERCENTAGE","CLASS_SBC_BOOLEAN_EXPRESSION_ID","CLASS_SBC_QUANTITY","CLASS_SBC_EFFECTIVE_DATE","CLASS_SBC_DISCONTINUE_DATE","CLASS_SBC_FLAG","CLASS_SBC_MIN","CLASS_SBC_MIN_NEST_TYPE","CLASS_SBC_MIN_NEST_REFERENCE","CLASS_SBC_MAX","CLASS_SBC_MAX_NEST_TYPE","CLASS_SBC_MAX_NEST_REFERENCE","CLASS_SBC_UPGRADE","CLASS_SBC_LOW_NOTIFICATION_LEVEL","CLASS_SBC_HIGH_NOTIFICATION_LEVEL","CLASS_SBC_PARENT_SUBCLASSID","CLASS_SBC_NETTED_PROTECTION","CLASS_SBC_WAITLIST_MAX","CLASS_SBC_WAITLIST_MAX_PERCENTAGE_OF_AU","CLASS_SBC_PROFILE_TYPE","CLASS_SBC_PROFILE_NAME","CLASS_SBC_NOSHOW_PERCENTAGE","CLASS_SBC_OVERBOOKING_PERCENTAGE","CLASS_SBC_BOOKINGS_COUNTER","CLASS_SBC_GROUP_BOOKINGS_COUNTER","CLASS_SBC_GROUP_PENDING_COUNTER","CLASS_SBC_GROUP_WAITLIST_COUNTER","CLASS_SBC_WAITLIST_COUNTER","CLASS_SBC_EXPECTED_TO_BOARD","CLASS_SBC_NEGO_ALLOTED_SPACE","CLASS_SBC_AVS_STATUS","CLASS_SBC_AVAIL_COUNTERS","CLASS_SBC_NET_CLASS_AVAILABILITY","CLASS_SBC_SEGMENT_AVAILABILITY","CLASS_SBC_NET_REVENUE_AVAILABILITY","CLASS_SBC_CONTROLLED_AVAILABILITY","CLASS_MOVEABLE_CURTAIN_SLS","CLASS_MOVEABLE_CURTAIN_SLC","MESSAGE_DATETIME","POST_DATE"];
+    const hash_diff_cols=["SEGMENT_DEPARTURE_LOC","SEGMENT_ARRIVAL_LOC","SEGMENT_DEPARTURE_DATETIME","SEGMENT_ARRIVAL_DATETIME","PARTNER_CODESHARE_INFO1","PARTNER_CODESHARE_INFO1","SEGMENT_STATUS_YES","SEGMENT_STATUS_NO","CABIN_CODE","BOOKING_CLASS_CODE","CLASS_AVS","SUBLCASS_NUMBER_INDICATOR","CLASS_BOARDED_PNR","CLASS_NOSHOW","CLASS_GROUPNOSHOW","CLASS_OFFLOADED_PNR","CLASS_GROUPBOARDED","CLASS_COMMERICAL_STANDBY_BOARDED","CLASS_COMMERICAL_STANDBY_NOBOARDED","CLASS_UPGRADE_IN","CLASS_UPGRADE_OUT","CLASS_DOWNGRADE_IN","CLASS_DOWNGRADE_OUT","CLASS_GOSHOW_PNR","CLASS_STAFF_STANDBY_BOARD","CLASS_STAFF_STANDBY_NO_BOARD","CLASS_VOLUNTARY_OFFLOAD","CLASS_DENIED_BOARDING","CLASS_NO_REC","CLASS_AUTHORISATION","CLASS_BOOKING_CANCEL_COUNT","CLASS_GROUPBOOKING_CANCELLATIONS","CLASS_GROUP_ASSIGNED_NAME","CLASS_EXPECTED_TO_BOARD","CLASS_NESTED_SEGMENT_LIMIT","CLASS_OWN_AVAILABILITY","CLASS_NEGO_BOOKING","CLASS_SEGMENT_LIMIT_STANDALONE","CLASS_CLASS_SBC_LIMIT_THRESHOLD","CLASS_CLASS_SBC_LIMIT_PERCENTAGE","CLASS_SEGMENTLIMIT","CLASS_SEGMENT_LIMIT_CONNECTING","CLASS_NETTED_PROTECTION","CLASS_TICKETED_PASSANGERS","CLASS_TOTAL_OVERBOOKING_PERCENTAGE","CLASS_SBC_BOOLEAN_EXPRESSION_ID","CLASS_SBC_QUANTITY","CLASS_SBC_EFFECTIVE_DATE","CLASS_SBC_DISCONTINUE_DATE","CLASS_SBC_FLAG","CLASS_SBC_MIN","CLASS_SBC_MIN_NEST_TYPE","CLASS_SBC_MIN_NEST_REFERENCE","CLASS_SBC_MAX","CLASS_SBC_MAX_NEST_TYPE","CLASS_SBC_MAX_NEST_REFERENCE","CLASS_SBC_UPGRADE","CLASS_SBC_LOW_NOTIFICATION_LEVEL","CLASS_SBC_HIGH_NOTIFICATION_LEVEL","CLASS_SBC_PARENT_SUBCLASSID","CLASS_SBC_NETTED_PROTECTION","CLASS_SBC_WAITLIST_MAX","CLASS_SBC_WAITLIST_MAX_PERCENTAGE_OF_AU","CLASS_SBC_PROFILE_TYPE","CLASS_SBC_PROFILE_NAME","CLASS_SBC_NOSHOW_PERCENTAGE","CLASS_SBC_OVERBOOKING_PERCENTAGE","CLASS_SBC_BOOKINGS_COUNTER","CLASS_SBC_GROUP_BOOKINGS_COUNTER","CLASS_SBC_GROUP_PENDING_COUNTER","CLASS_SBC_GROUP_WAITLIST_COUNTER","CLASS_SBC_WAITLIST_COUNTER","CLASS_SBC_EXPECTED_TO_BOARD","CLASS_SBC_NEGO_ALLOTED_SPACE","CLASS_SBC_AVS_STATUS","CLASS_SBC_AVAIL_COUNTERS","CLASS_SBC_NET_CLASS_AVAILABILITY","CLASS_SBC_SEGMENT_AVAILABILITY","CLASS_SBC_NET_REVENUE_AVAILABILITY","CLASS_SBC_CONTROLLED_AVAILABILITY","CLASS_MOVEABLE_CURTAIN_SLS","CLASS_MOVEABLE_CURTAIN_SLC"];
+    const positions= [["SEGMENT_SEQUENCE","SEGS",1,0],["SEGMENT_DEPARTURE_LOC","ODI",1,0],["SEGMENT_ARRIVAL_LOC","ODI",2,0],["CABIN_CODE","SCI",1,0],["BOOKING_CLASS_CODE","PDI",2,0],["CLASS_AVS","CLA",1,0],["SUBLCASS_NUMBER_INDICATOR","SBI",1,0],["CLASS_SBC_BOOLEAN_EXPRESSION_ID","SBC",1,0],["CLASS_SBC_QUANTITY","SBC",2,0],["CLASS_SBC_EFFECTIVE_DATE","SBC",3,0],["CLASS_SBC_DISCONTINUE_DATE","SBC",4,0],["CLASS_SBC_MIN","SBC",6,0],["CLASS_SBC_MIN_NEST_TYPE","SBC",6,1],["CLASS_SBC_MIN_NEST_REFERENCE","SBC",6,2],["CLASS_SBC_MAX","SBC",6,3],["CLASS_SBC_MAX_NEST_TYPE","SBC",6,4],["CLASS_SBC_MAX_NEST_REFERENCE","SBC",6,5],["CLASS_SBC_UPGRADE","SBC",6,6],["CLASS_SBC_LOW_NOTIFICATION_LEVEL","SBC",6,7],["CLASS_SBC_HIGH_NOTIFICATION_LEVEL","SBC",6,8],["CLASS_SBC_PARENT_SUBCLASSID","SBC",6,9],["CLASS_SBC_NETTED_PROTECTION","SBC",6,10],["CLASS_SBC_WAITLIST_MAX","SBC",6,11],["CLASS_SBC_WAITLIST_MAX_PERCENTAGE_OF_AU","SBC",6,12],["CLASS_SBC_PROFILE_TYPE","SBC",7,0],["CLASS_SBC_PROFILE_NAME","SBC",7,1],["CLASS_SBC_NOSHOW_PERCENTAGE","SBC",7,2],["CLASS_SBC_OVERBOOKING_PERCENTAGE","SBC",7,3],["CLASS_SBC_BOOKINGS_COUNTER","SBC",8,0],["CLASS_SBC_GROUP_BOOKINGS_COUNTER","SBC",8,1],["CLASS_SBC_GROUP_PENDING_COUNTER","SBC",8,2],["CLASS_SBC_GROUP_WAITLIST_COUNTER","SBC",8,3],["CLASS_SBC_WAITLIST_COUNTER","SBC",8,4],["CLASS_SBC_EXPECTED_TO_BOARD","SBC",8,5],["CLASS_SBC_NEGO_ALLOTED_SPACE","SBC",8,6],["CLASS_SBC_AVS_STATUS","SBC",9,0],["CLASS_SBC_AVAIL_COUNTERS","SBC",10,0],["CLASS_SBC_NET_CLASS_AVAILABILITY","SBC",10,1],["CLASS_SBC_SEGMENT_AVAILABILITY","SBC",10,2],["CLASS_SBC_NET_REVENUE_AVAILABILITY","SBC",10,3],["CLASS_SBC_CONTROLLED_AVAILABILITY","SBC",10,4],["POST_DATE","UNB",4,0]];
+    output=get_position_based_values(section,positions);
+    const segments = section.split("''\\n");
+    for(const segment of segments){
+        key_value[segment.substring(0,3)]=segment;
+    }
+    //DAT
+    if("DAT" in key_value ){
+        let temp = key_value["DAT"].substring(4).split("+");
+        for(let i of temp){
+            if(i.startsWith("708")){
+                output["SEGMENT_DEPARTURE_DATETIME"]=i.substring(4);
+            }
+            if(i.startsWith("707")){
+                output["SEGMENT_ARRIVAL_DATETIME"]=i.substring(4);
+            }
+
+        }
+    }
+    //CAR
+    if("CAR" in key_value) {
+        let temp=key_value["CAR"].split("+");
+        let len=temp.length;
+        if(len>2) {
+            output["PARTNER_CODESHARE_INFO1"]=temp[2];
+        }
+        if(len>3) {
+            output["PARTNER_CODESHARE_INFO2"]=temp[3];
+        }
+    }
+    //STX
+    if("STX" in key_value) {
+        let temp = key_value["STX"].substring(4).split("+");
+        let STX_0="";
+        let STX_1="";
+        for(let i of temp){
+            if(i.endsWith("0")) {
+                STX_0 +=i.split(":")[0]+",";
+            }
+            if(i.endsWith("1")) {
+                STX_1 +=i.split(":")[0]+",";
+            }
+        }
+        if(STX_0!="") {
+            STX_0=STX_0.substring(0,STX_0.length-1);
+        }
+		if(STX_1!="") {
+            STX_1=STX_1.substring(0,STX_1.length-1);
+        }
+        output["SEGMENT_STATUS_YES"]=STX_1;
+        output["SEGMENT_STATUS_NO"]=STX_0;
+    }
+    //SBC CLASS_SBC_FLAG
+    if("SBC" in key_value){
+        let temp=key_value["SBC"].split("+");
+        if(temp.length>5){
+            output["CLASS_SBC_FLAG"]=temp[5];
+        }
+    }
+    //EQN
+    PDI_ind=section.indexOf("PDI");
+    SBI_ind=section.indexOf("SBI");
+    EQN_ind=section.indexOf("EQN");
+    if((PDI_ind < EQN_ind) && (EQN_ind<SBI_ind) && EQN_ind!=-1) {
+        let temp=convert_to_pairs(key_value["EQN"]);
+        output["CLASS_BOARDED_PNR"]=temp["BOA"];
+        output["CLASS_COMMERICAL_STANDBY_BOARDED"]=temp["CBO"];
+        output["CLASS_COMMERICAL_STANDBY_NOBOARDED"]=temp["CNB"];
+        output["CLASS_GOSHOW_PNR"]=temp["GOS"];
+        output["CLASS_NOSHOW"]=temp["NOS"];
+        output["CLASS_GROUPNOSHOW"]=temp["GNS"];
+        output["CLASS_GROUPBOARDED"]=temp["GBO"];
+        output["CLASS_OFFLOADED_PNR"]=temp["OFF"];
+        output["CLASS_STAFF_STANDBY_BOARD"]=temp["SBO"];
+        output["CLASS_STAFF_STANDBY_NO_BOARD"]=temp["SNB"];
+        output["CLASS_VOLUNTARY_OFFLOAD"]=temp["VOL"];
+        output["CLASS_UPGRADE_IN"]=temp["UGI"];
+        output["CLASS_UPGRADE_OUT"]=temp["UGO"];
+        output["CLASS_DOWNGRADE_IN"]=temp["DGI"];
+        output["CLASS_DOWNGRADE_OUT"]=temp["DGO"];
+        output["CLASS_DENIED_BOARDING"]=temp["DNB"];
+        output["CLASS_NO_REC"]=temp["NOR"];
+    }
+    //NQE
+    if("NQE" in key_value) {
+        let temp=convert_to_pairs(key_value["NQE"]);
+        output["CLASS_AUTHORISATION"]=temp["AU"];
+        output["CLASS_BOOKING_CANCEL_COUNT"]=temp["BCA"];
+        output["CLASS_GROUPBOOKING_CANCELLATIONS"]=temp["GBC"];
+        output["CLASS_GROUP_ASSIGNED_NAME"]=temp["GAS"];
+        output["CLASS_EXPECTED_TO_BOARD"]=temp["ETB"];
+        output["CLASS_NESTED_SEGMENT_LIMIT"]=temp["NSL"];
+        output["CLASS_OWN_AVAILABILITY"]=temp["OWN"];
+        output["CLASS_NEGO_BOOKING"]=temp["NEG"];
+        output["CLASS_SEGMENT_LIMIT_STANDALONE"]=temp["SLS"];
+        output["CLASS_CLASS_SBC_LIMIT_THRESHOLD"]=temp["SBT"];
+        output["CLASS_CLASS_SBC_LIMIT_PERCENTAGE"]=temp["SBP"];
+        output["CLASS_SEGMENTLIMIT"]=temp["SLM"];
+        output["CLASS_SEGMENT_LIMIT_CONNECTING"]=temp["SLC"];
+        output["CLASS_NETTED_PROTECTION"]=temp["PRO"];
+        output["CLASS_TICKETED_PASSANGERS"]=temp["TKP"];
+        output["CLASS_TOTAL_OVERBOOKING_PERCENTAGE"]=temp["TOB"];
+    }
+    //ATC
+    if("ATC" in key_value) {
+        let temp =key_value["ATC"].split("+");
+        for(let i of temp) {
+            if(i.startsWith("SLC")) { 
+                output["CLASS_MOVEABLE_CURTAIN_SLC"]=i.split(":")[1];
+            }								
+            if(i.startsWith("SLS")) {
+                output["CLASS_MOVEABLE_CURTAIN_SLS"]=i.split(":")[1]; 
+            }		
+        }	
+    }
+    //TAD
+    if("TAD" in key_value) {
+        let temp=key_value["TAD"].split("+");
+        output["MESSAGE_DATETIME"]=temp[1].substring(temp[1].indexOf(":")+1);
+    }
+    for(let col of columns){
+        if(output[col]===undefined || output[col]===null || output[col].trim().length === 0){
+        //beware of ===, because null==undefined is true, order of these conditions also matters, as undefied.trim() will give an error, when output[col] is undefined first condition is true, 2nd condition will not get executed
+        output[col]=null;
+        }
+
+    }
+    //FLT_HASHKEY
+    if("FDR" in key_value){
+        let temp=key_value["FDR"].split("+");
+        output["FLT_HASHKEY"]=temp[1]+temp[2]+temp[3];
+    }
+    //HASH_DIFF
+    let concat="";
+    for(let col of hash_diff_cols){
+        if(output[col]===null){
+            concat+="^^"
+        }
+        else{
+            concat+=output[col];
+        }
+    }
+    output["HASH_DIFF"]=concat;
+    //REC_SRCE
+    output["REC_SRCE"]="LND_BIF";
+
+    return output;
+}
+function get_position_based_values(section,positions){
+    var dict = {};
+    var output={};
+    const segments=section.split("''\\n");
+    for(var segment of segments){
+        const temp=segment.split("+");
+        var temp1=[];
+        for(var i=0;i<temp.length;i++){
+            temp1[i]=temp[i].split(":");       
+        }
+        dict[temp1[0][0]]=temp1
+    }
+    for(var position of positions ){
+        const tag=position[1];
+        const p=position[2];
+        const q=position[3];
+        if(tag in dict){
+            const data=dict[tag];
+            if(p<data.length && q<data[p].length){
+                output[position[0]]=data[p][q];
+            }
+        }
+    }
+    return output;
+}
+
+function convert_to_pairs(segment){
+    var output={};
+    const temp=segment.split("+");
+    for(var i=1;i<temp.length;i++){
+        const temp1=temp[i].split(":");
+        output[temp1[1]]=temp1[0];
+    }
+    return output;
+}
+
+for(let section of row.SEG_CLS_COUNTERS.split("<") ){
+let result ={};
+result=get_seg_cls_counters_values(section);
+rowWriter.writeRow({FLT_HASHKEY:result["FLT_HASHKEY"],HASH_DIFF:result["HASH_DIFF"],SEGMENT_SEQUENCE:result["SEGMENT_SEQUENCE"],SEGMENT_DEPARTURE_LOC:result["SEGMENT_DEPARTURE_LOC"],SEGMENT_ARRIVAL_LOC:result["SEGMENT_ARRIVAL_LOC"],SEGMENT_DEPARTURE_DATETIME:result["SEGMENT_DEPARTURE_DATETIME"],SEGMENT_ARRIVAL_DATETIME:result["SEGMENT_ARRIVAL_DATETIME"],PARTNER_CODESHARE_INFO1:result["PARTNER_CODESHARE_INFO1"],PARTNER_CODESHARE_INFO2:result["PARTNER_CODESHARE_INFO2"],SEGMENT_STATUS_YES:result["SEGMENT_STATUS_YES"],SEGMENT_STATUS_NO:result["SEGMENT_STATUS_NO"],CABIN_CODE:result["CABIN_CODE"],BOOKING_CLASS_CODE:result["BOOKING_CLASS_CODE"],CLASS_AVS:result["CLASS_AVS"],SUBLCASS_NUMBER_INDICATOR:result["SUBLCASS_NUMBER_INDICATOR"],CLASS_BOARDED_PNR:result["CLASS_BOARDED_PNR"],CLASS_NOSHOW:result["CLASS_NOSHOW"],CLASS_GROUPNOSHOW:result["CLASS_GROUPNOSHOW"],CLASS_OFFLOADED_PNR:result["CLASS_OFFLOADED_PNR"],CLASS_GROUPBOARDED:result["CLASS_GROUPBOARDED"],CLASS_COMMERICAL_STANDBY_BOARDED:result["CLASS_COMMERICAL_STANDBY_BOARDED"],CLASS_COMMERICAL_STANDBY_NOBOARDED:result["CLASS_COMMERICAL_STANDBY_NOBOARDED"],CLASS_UPGRADE_IN:result["CLASS_UPGRADE_IN"],CLASS_UPGRADE_OUT:result["CLASS_UPGRADE_OUT"],CLASS_DOWNGRADE_IN:result["CLASS_DOWNGRADE_IN"],CLASS_DOWNGRADE_OUT:result["CLASS_DOWNGRADE_OUT"],CLASS_GOSHOW_PNR:result["CLASS_GOSHOW_PNR"],CLASS_STAFF_STANDBY_BOARD:result["CLASS_STAFF_STANDBY_BOARD"],CLASS_STAFF_STANDBY_NO_BOARD:result["CLASS_STAFF_STANDBY_NO_BOARD"],CLASS_VOLUNTARY_OFFLOAD:result["CLASS_VOLUNTARY_OFFLOAD"],CLASS_DENIED_BOARDING:result["CLASS_DENIED_BOARDING"],CLASS_NO_REC:result["CLASS_NO_REC"],CLASS_AUTHORISATION:result["CLASS_AUTHORISATION"],CLASS_BOOKING_CANCEL_COUNT:result["CLASS_BOOKING_CANCEL_COUNT"],CLASS_GROUPBOOKING_CANCELLATIONS:result["CLASS_GROUPBOOKING_CANCELLATIONS"],CLASS_GROUP_ASSIGNED_NAME:result["CLASS_GROUP_ASSIGNED_NAME"],CLASS_EXPECTED_TO_BOARD:result["CLASS_EXPECTED_TO_BOARD"],CLASS_NESTED_SEGMENT_LIMIT:result["CLASS_NESTED_SEGMENT_LIMIT"],CLASS_OWN_AVAILABILITY:result["CLASS_OWN_AVAILABILITY"],CLASS_NEGO_BOOKING:result["CLASS_NEGO_BOOKING"],CLASS_SEGMENT_LIMIT_STANDALONE:result["CLASS_SEGMENT_LIMIT_STANDALONE"],CLASS_CLASS_SBC_LIMIT_THRESHOLD:result["CLASS_CLASS_SBC_LIMIT_THRESHOLD"],CLASS_CLASS_SBC_LIMIT_PERCENTAGE:result["CLASS_CLASS_SBC_LIMIT_PERCENTAGE"],CLASS_SEGMENTLIMIT:result["CLASS_SEGMENTLIMIT"],CLASS_SEGMENT_LIMIT_CONNECTING:result["CLASS_SEGMENT_LIMIT_CONNECTING"],CLASS_NETTED_PROTECTION:result["CLASS_NETTED_PROTECTION"],CLASS_TICKETED_PASSANGERS:result["CLASS_TICKETED_PASSANGERS"],CLASS_TOTAL_OVERBOOKING_PERCENTAGE:result["CLASS_TOTAL_OVERBOOKING_PERCENTAGE"],CLASS_SBC_BOOLEAN_EXPRESSION_ID:result["CLASS_SBC_BOOLEAN_EXPRESSION_ID"],CLASS_SBC_QUANTITY:result["CLASS_SBC_QUANTITY"],CLASS_SBC_EFFECTIVE_DATE:result["CLASS_SBC_EFFECTIVE_DATE"],CLASS_SBC_DISCONTINUE_DATE:result["CLASS_SBC_DISCONTINUE_DATE"],CLASS_SBC_FLAG:result["CLASS_SBC_FLAG"],CLASS_SBC_MIN:result["CLASS_SBC_MIN"],CLASS_SBC_MIN_NEST_TYPE:result["CLASS_SBC_MIN_NEST_TYPE"],CLASS_SBC_MIN_NEST_REFERENCE:result["CLASS_SBC_MIN_NEST_REFERENCE"],CLASS_SBC_MAX:result["CLASS_SBC_MAX"],CLASS_SBC_MAX_NEST_TYPE:result["CLASS_SBC_MAX_NEST_TYPE"],CLASS_SBC_MAX_NEST_REFERENCE:result["CLASS_SBC_MAX_NEST_REFERENCE"],CLASS_SBC_UPGRADE:result["CLASS_SBC_UPGRADE"],CLASS_SBC_LOW_NOTIFICATION_LEVEL:result["CLASS_SBC_LOW_NOTIFICATION_LEVEL"],CLASS_SBC_HIGH_NOTIFICATION_LEVEL:result["CLASS_SBC_HIGH_NOTIFICATION_LEVEL"],CLASS_SBC_PARENT_SUBCLASSID:result["CLASS_SBC_PARENT_SUBCLASSID"],CLASS_SBC_NETTED_PROTECTION:result["CLASS_SBC_NETTED_PROTECTION"],CLASS_SBC_WAITLIST_MAX:result["CLASS_SBC_WAITLIST_MAX"],CLASS_SBC_WAITLIST_MAX_PERCENTAGE_OF_AU:result["CLASS_SBC_WAITLIST_MAX_PERCENTAGE_OF_AU"],CLASS_SBC_PROFILE_TYPE:result["CLASS_SBC_PROFILE_TYPE"],CLASS_SBC_PROFILE_NAME:result["CLASS_SBC_PROFILE_NAME"],CLASS_SBC_NOSHOW_PERCENTAGE:result["CLASS_SBC_NOSHOW_PERCENTAGE"],CLASS_SBC_OVERBOOKING_PERCENTAGE:result["CLASS_SBC_OVERBOOKING_PERCENTAGE"],CLASS_SBC_BOOKINGS_COUNTER:result["CLASS_SBC_BOOKINGS_COUNTER"],CLASS_SBC_GROUP_BOOKINGS_COUNTER:result["CLASS_SBC_GROUP_BOOKINGS_COUNTER"],CLASS_SBC_GROUP_PENDING_COUNTER:result["CLASS_SBC_GROUP_PENDING_COUNTER"],CLASS_SBC_GROUP_WAITLIST_COUNTER:result["CLASS_SBC_GROUP_WAITLIST_COUNTER"],CLASS_SBC_WAITLIST_COUNTER:result["CLASS_SBC_WAITLIST_COUNTER"],CLASS_SBC_EXPECTED_TO_BOARD:result["CLASS_SBC_EXPECTED_TO_BOARD"],CLASS_SBC_NEGO_ALLOTED_SPACE:result["CLASS_SBC_NEGO_ALLOTED_SPACE"],CLASS_SBC_AVS_STATUS:result["CLASS_SBC_AVS_STATUS"],CLASS_SBC_AVAIL_COUNTERS:result["CLASS_SBC_AVAIL_COUNTERS"],CLASS_SBC_NET_CLASS_AVAILABILITY:result["CLASS_SBC_NET_CLASS_AVAILABILITY"],CLASS_SBC_SEGMENT_AVAILABILITY:result["CLASS_SBC_SEGMENT_AVAILABILITY"],CLASS_SBC_NET_REVENUE_AVAILABILITY:result["CLASS_SBC_NET_REVENUE_AVAILABILITY"],CLASS_SBC_CONTROLLED_AVAILABILITY:result["CLASS_SBC_CONTROLLED_AVAILABILITY"],CLASS_MOVEABLE_CURTAIN_SLS:result["CLASS_MOVEABLE_CURTAIN_SLS"],CLASS_MOVEABLE_CURTAIN_SLC:result["CLASS_MOVEABLE_CURTAIN_SLC"],MESSAGE_DATETIME:result["MESSAGE_DATETIME"],POST_DATE:result["POST_DATE"],REC_SRCE:result["REC_SRCE"]});
+
+}    
+    
+}
+}
+    
+    ';
+/************************************************************************************************/
+
+CREATE OR REPLACE FUNCTION "PARSEBIF"("MESSAGE" VARCHAR(16777216))
+RETURNS TABLE ("MSGDATE" VARCHAR(16777216), "MSG" VARCHAR(16777216))
+LANGUAGE JAVASCRIPT
+AS '{
+    processRow: function f(row, rowWriter, context){
+       var str = row.MESSAGE;
+       var res = str.split("chr(10)");
+       var prefix = res[0].split("+");
+       var md = prefix[0];
+       var mg = prefix[1]; 
+       rowWriter.writeRow({MSGDATE : md, MSG: mg});
+       }
+    }';
+/************************************************************************************************/
+
+CREATE OR REPLACE FUNCTION "CODE_DDL_TO_TEXT_TEST1"("CODE_TEXT" VARCHAR(16777216))
+RETURNS VARCHAR(16777216)
+LANGUAGE JAVASCRIPT
+AS '
+    var lines = CODE_TEXT.split("\\n");
+    var out = "";
+    var startCode = new RegExp("^AS ''$", "ig");
+    var endCode = new RegExp("^''\\;$", "ig");
+    var inCode = false;
+    var isChange = false;
+    var s;
+    for (i = 0; i < lines.length; i++){
+        isChange = false;
+        if(!inCode) {
+            inCode = startCode.test(lines[i]);
+            if(inCode) {
+                isChange = true;
+                out += "AS $" + "$\\n";
+            }
+        }
+        if (endCode.test(lines[i])){
+            out += "$" + "$;";
+            isChange = true;
+            inCode = false;
+        }
+        if(!isChange){
+            if(inCode){
+                s = lines[i].replace(/''''/g, "''") + "\\n";
+                s = s.replace(/\\\\\\\\/g, "\\\\");
+                out += s;
+            } else {
+                out += lines[i] + "\\n";
+            }
+        }
+    }
+    return out;
+';
+/************************************************************************************************/
+
+CREATE OR REPLACE FUNCTION "NAME_MASKER"("STR" VARCHAR(16777216))
+RETURNS VARCHAR(16777216)
+LANGUAGE JAVASCRIPT
+AS '
+  return ((STR+"").replaceAll(''A'',''V'').replaceAll(''E'',''W'').replaceAll(''I'',''X'').replaceAll(''O'',''Y'').replaceAll(''U'',''Z''));
+  ';
+/************************************************************************************************/
+
+CREATE OR REPLACE FUNCTION "MSG_TO_SECTIONS_JAVA"("BIF_MESSAGE" VARCHAR(16777216))
+RETURNS TABLE ("FDR" VARCHAR(16777216), "FDD" VARCHAR(16777216), "APD" VARCHAR(16777216), "ODI_PDI" VARCHAR(16777216), "ODI_SCI" VARCHAR(16777216))
+LANGUAGE JAVA
+HANDLER = 'LOAD_SECTIONS'
+AS '
+  import java.util.HashMap;
+  import java.util.ArrayList;
+  import java.util.List;
+  import java.util.stream.Stream;
+  
+  class OutputRow {
+    public String FDD,FDR,APD,ODI_SCI,ODI_PDI;
+    public OutputRow(String FDR,String FDD,String APD,String ODI_PDI,String ODI_SCI){
+       this.FDD=FDD;
+       this.FDR=FDR;
+       this.APD=APD;
+       this.ODI_SCI=ODI_SCI;
+       this.ODI_PDI=ODI_PDI;
+       }
+
+  }
+
+  
+  class LOAD_SECTIONS {
+    public static Class getOutputClass() {
+      return OutputRow.class;
+    }
+
+    public Stream<OutputRow> process(String msg) {
+      String[] table_tags = {"FDD","APD","ODI"};
+      HashMap<String, String> output = new HashMap<>();
+      output=FDR_FDD_APD_ODI(msg,table_tags);
+      return Stream.of(new OutputRow(output.get("FDR"),output.get("FDD"),output.get("APD"),output.get("ODI_PDI"),output.get("ODI_SCI")));
+
+    }
+    
+    public static HashMap<String, String> FDR_FDD_APD_ODI(String msg,String[]table_tags) {
+        HashMap<String, String> output = new HashMap<>();
+        for (int i=0;i<table_tags.length;i++) {
+            if(i==table_tags.length-1){
+                String start="\\n"+table_tags[i]+"+";
+                output.put(table_tags[i],msg.substring(msg.indexOf(start)+1));
+            }
+            else{
+                String start="\\n"+table_tags[i]+"+";
+                String end="\\n"+table_tags[i+1]+"+";
+                output.put(table_tags[i],msg.substring(msg.indexOf(start)+1,msg.indexOf(end)+1));
+            }
+            
+        }
+        String header = msg.split("\\nFDD")[0]+"\\n";
+        String[] ODIs=("\\n"+output.get("ODI")).split("\\nODI");
+    	String[] STXs=ODIs[ODIs.length-1].split("\\nSTX");
+    	int index = output.get("ODI").indexOf(STXs[2]);
+    	String actual_ODI = output.get("ODI").substring(0,index-3);
+    	output.put("ODI",actual_ODI);
+    	String trailer = "XTS"+STXs[2].replace("''\\nDAT","''\\nTAD");
+    	for(String tag:table_tags) {
+    		output.put(tag,header+output.get(tag)+trailer);
+    	}
+    	output.put("FDR", header+trailer);
+    	//APD
+    	List<String> EQIs = new ArrayList<>();
+    	int count = 1;
+    	for(String APD:splitter(output.get("APD"), "APD", "XTS")) {
+    		APD=APD.replaceFirst("''\\nEQI","''\\nIQE");
+    		for(String EQI:splitter(APD, "EQI", "XTS")) {
+    			EQI=EQI.replaceFirst("''\\nEQN","''\\nNQE");
+    			EQI=EQI.trim();
+    			EQI=EQI+"\\n"+"LEGS+"+Integer.toString(count);//for leg sequence
+    			EQIs.add(EQI);
+    		}
+    		count+=1;
+    	}
+    	output.put("APD", String.join("<", EQIs));
+    	//ODI
+    	List<String> PDIs = new ArrayList<>();
+    	List<String> SCIs = new ArrayList<>();
+    	count = 1;
+    	for(String ODI:splitter(output.get("ODI"), "ODI", "XTS")) {
+    		for(String SCI:splitter(ODI, "SCI", "XTS")) {  			
+    			for(String PDI:splitter(SCI, "PDI", "XTS")) {
+    				int start = PDI.indexOf("\\nSBI+");
+    	            index = PDI.indexOf("\\nEQN+",start);
+    	            if(index!=-1) {
+    	                PDI=PDI.substring(0,index+1)+"NQE"+PDI.substring(index+4);
+    	            }
+    	            PDI=PDI.trim();
+    	            PDI=PDI+"\\n"+"SEGS+"+Integer.toString(count);    	            
+    	            PDIs.add(PDI); 				
+    			}
+    			SCI=SCI.trim();
+	            SCI=SCI+"\\n"+"SEGS+"+Integer.toString(count);    	            
+	            SCIs.add(SCI);   			
+    		} 
+    		count+=1;	
+    	}
+    	output.put("ODI_SCI", String.join("<", SCIs));
+    	output.put("ODI_PDI", String.join("<", PDIs));   	
+        return output;
+    }
+
+	
+	public static String[] splitter(String msg,String tag,String trailer_tag) {
+    	msg="\\n"+msg;
+    	String[] msgs=msg.split("\\n"+tag);
+    	String header = msgs[0]+"\\n";
+    	String trailer = trailer_tag+msgs[msgs.length-1].split("\\n"+trailer_tag)[1];
+    	msgs[msgs.length-1]=msgs[msgs.length-1].split("\\n"+trailer_tag)[0];
+    	String output="";
+    	for(int i=1;i<msgs.length;i++) {
+    		msgs[i]=header+tag+msgs[i]+"\\n"+trailer;
+    		output+=msgs[i]+"<";
+    	}
+    	output=output.substring(0,output.length()-1);
+    	return output.split("<");
+	}
+   }
+';
+/************************************************************************************************/
+
+CREATE OR REPLACE FUNCTION "GETINDIVIDUALID"("P_MEMBERNUMBER" VARCHAR(30))
+RETURNS NUMBER(38,0)
+LANGUAGE SQL
+AS 'select indiv_id
+      from DBA.XREFTEST
+      where MEMBERNUMBER=P_MEMBERNUMBER';
+/************************************************************************************************/
+
+CREATE OR REPLACE FUNCTION "B2S"("RULEEXPRESSION" BOOLEAN, "COLUMNNAME" VARCHAR(16777216), "RULE" VARCHAR(16777216))
+RETURNS VARCHAR(16777216)
+LANGUAGE SQL
+AS '
+       select ''{ "reason": "'' || rule || ''",\\r\\n"columnName": "'' || columnName || ''",\\r\\n"passed":'' || ( ruleExpression) || ''}'' 
+   ';
+/************************************************************************************************/
+
+CREATE OR REPLACE FUNCTION "GETINDIVIDUALIDTEST"("P_MEMBERNUMBER" VARCHAR(30))
+RETURNS NUMBER(38,0)
+LANGUAGE SQL
+AS '
+select indiv_id
+from DBA.XREFTEST
+where MEMBERNUMBER=P_MEMBERNUMBER
+';
+/************************************************************************************************/
+
+CREATE OR REPLACE FUNCTION "HUB_BIF_INV_FLT_BKG"("HUB" VARCHAR(16777216))
+RETURNS TABLE ("FLT_HASHKEY" VARCHAR(16777216), "CARRIER_CODE" VARCHAR(16777216), "FLIGHT_NUMBER" VARCHAR(16777216), "FLIGHT_DATE" VARCHAR(16777216), "REC_SRCE" VARCHAR(16777216))
+LANGUAGE JAVASCRIPT
+AS '
+{
+    processRow: function f(row, rowWriter, context)  {
+        const segments=row.HUB.split("''\\n");
+        for(let segment of segments){
+            if(segment.startsWith("FDR+")){
+                const elements=segment.split("+");
+                const concated_str= elements[1]+elements[2]+elements[3];
+                rowWriter.writeRow({FLT_HASHKEY:concated_str,CARRIER_CODE: elements[1],FLIGHT_NUMBER:elements[2], FLIGHT_DATE:elements[3],REC_SRCE:"LND_BIF"});
+            }
+        }
+             
+    }
+}
+  ';
+/************************************************************************************************/
+
+CREATE OR REPLACE FUNCTION "UDF_JSON_MASK_IATCI"("PARAM" ARRAY, "JSON" VARCHAR(16777216))
+RETURNS VARCHAR(16777216)
+LANGUAGE JAVASCRIPT
+AS ' var newstring  = JSON;
+  var regpattern = ''":"([^"]*)"'';
+  finalstring = '''';
+  
+  var replacevalue = ''***********'';
+  var arrayLength = PARAM.length;
+  for (var i = 0; i < arrayLength; i++) {
+    patternnow   = ''"''+PARAM[i] + regpattern;  
+    newRegExp    = new RegExp(patternnow,"g");
+    
+    searchstring = ''"'' + PARAM[i] + ''":'';
+    s            = newstring.indexOf(searchstring) + searchstring.length+1;
+    e            = newstring.indexOf(''",'',s);
+    t            = newstring.substr(s,e-s);
+ 
+    replacevalue = ''"''+PARAM[i]+''":"**********"'';
+    x            = searchstring  + ''"''+t+''"'';
+    
+    rplstring   = newstring.replace( x ,replacevalue);
+    newstring   = rplstring;
+    finalstring = newstring;
+    
+  }
+  return finalstring;
+';
+/************************************************************************************************/
+
+CREATE OR REPLACE FUNCTION "SAT_SEG_CLS_COUNTERS"("SECTION" VARCHAR(16777216))
+RETURNS TABLE ("HASH_KEY" VARCHAR(16777216), "HASH_DIFF" VARCHAR(16777216))
+LANGUAGE JAVA
+HANDLER = 'LOAD_TABLE'
+AS '
+
+  import java.util.stream.Stream;
+  import java.util.HashMap;
+  import java.util.ArrayList;
+
+  class OutputRow {
+    public String hash_key,hash_diff;
+    public OutputRow(String hash_key,String hash_diff) {
+      this.hash_key = hash_key;
+      this.hash_diff = hash_diff;
+    }
+
+  }
+
+  
+  class LOAD_TABLE {
+    public static Class getOutputClass() {
+      return OutputRow.class;
+    }
+
+    public Stream<OutputRow> process(String section) {
+      HashMap<String, String> output = new HashMap<>();
+      ArrayList<OutputRow> rows = new ArrayList<>();
+      for(String record:section.split("<")){
+        output=SEG_CLASS_COUNTERS(record);
+        rows.add(new OutputRow(output.get("FLT_HASHKEY"),output.get("HASH_DIFF")));
+      }
+      return rows.stream();
+    }
+
+  
+
+  public static HashMap<String, String> SEG_CLASS_COUNTERS(String str){
+		String [] hash_diff_ODI = {"SEGMENT_DEPARTURE_LOC","SEGMENT_ARRIVAL_LOC","SEGMENT_DEPARTURE_DATETIME","SEGMENT_ARRIVAL_DATETIME","PARTNER_CODESHARE_INFO1","PARTNER_CODESHARE_INFO1","SEGMENT_STATUS_YES","SEGMENT_STATUS_NO","CABIN_CODE","BOOKING_CLASS_CODE","CLASS_AVS","SUBLCASS_NUMBER_INDICATOR","CLASS_BOARDED_PNR","CLASS_NOSHOW","CLASS_GROUPNOSHOW","CLASS_OFFLOADED_PNR","CLASS_GROUPBOARDED","CLASS_COMMERICAL_STANDBY_BOARDED","CLASS_COMMERICAL_STANDBY_NOBOARDED","CLASS_UPGRADE_IN","CLASS_UPGRADE_OUT","CLASS_DOWNGRADE_IN","CLASS_DOWNGRADE_OUT","CLASS_GOSHOW_PNR","CLASS_STAFF_STANDBY_BOARD","CLASS_STAFF_STANDBY_NO_BOARD","CLASS_VOLUNTARY_OFFLOAD","CLASS_DENIED_BOARDING","CLASS_NO_REC","CLASS_AUTHORISATION","CLASS_BOOKING_CANCEL_COUNT","CLASS_GROUPBOOKING_CANCELLATIONS","CLASS_GROUP_ASSIGNED_NAME","CLASS_EXPECTED_TO_BOARD","CLASS_NESTED_SEGMENT_LIMIT","CLASS_OWN_AVAILABILITY","CLASS_NEGO_BOOKING","CLASS_SEGMENT_LIMIT_STANDALONE","CLASS_CLASS_SBC_LIMIT_THRESHOLD","CLASS_CLASS_SBC_LIMIT_PERCENTAGE","CLASS_SEGMENTLIMIT","CLASS_SEGMENT_LIMIT_CONNECTING","CLASS_NETTED_PROTECTION","CLASS_TICKETED_PASSANGERS","CLASS_TOTAL_OVERBOOKING_PERCENTAGE","CLASS_SBC_BOOLEAN_EXPRESSION_ID","CLASS_SBC_QUANTITY","CLASS_SBC_EFFECTIVE_DATE","CLASS_SBC_DISCONTINUE_DATE","CLASS_SBC_FLAG","CLASS_SBC_MIN","CLASS_SBC_MIN_NEST_TYPE","CLASS_SBC_MIN_NEST_REFERENCE","CLASS_SBC_MAX","CLASS_SBC_MAX_NEST_TYPE","CLASS_SBC_MAX_NEST_REFERENCE","CLASS_SBC_UPGRADE","CLASS_SBC_LOW_NOTIFICATION_LEVEL","CLASS_SBC_HIGH_NOTIFICATION_LEVEL","CLASS_SBC_PARENT_SUBCLASSID","CLASS_SBC_NETTED_PROTECTION","CLASS_SBC_WAITLIST_MAX","CLASS_SBC_WAITLIST_MAX_PERCENTAGE_OF_AU","CLASS_SBC_PROFILE_TYPE","CLASS_SBC_PROFILE_NAME","CLASS_SBC_NOSHOW_PERCENTAGE","CLASS_SBC_OVERBOOKING_PERCENTAGE","CLASS_SBC_BOOKINGS_COUNTER","CLASS_SBC_GROUP_BOOKINGS_COUNTER","CLASS_SBC_GROUP_PENDING_COUNTER","CLASS_SBC_GROUP_WAITLIST_COUNTER","CLASS_SBC_WAITLIST_COUNTER","CLASS_SBC_EXPECTED_TO_BOARD","CLASS_SBC_NEGO_ALLOTED_SPACE","CLASS_SBC_AVS_STATUS","CLASS_SBC_AVAIL_COUNTERS","CLASS_SBC_NET_CLASS_AVAILABILITY","CLASS_SBC_SEGMENT_AVAILABILITY","CLASS_SBC_NET_REVENUE_AVAILABILITY","CLASS_SBC_CONTROLLED_AVAILABILITY","CLASS_MOVEABLE_CURTAIN_SLS","CLASS_MOVEABLE_CURTAIN_SLC"};
+		HashMap<String, String> output = new HashMap<>();
+		HashMap<String, String> output_final = new HashMap<>();
+		//let us first get position based values : ODI,PDI,CLA,SBI,SBC
+		String[][] positions= 
+			{
+			{"SEGMENT_SEQUENCE","SEGS","1","0"},
+			{"SEGMENT_DEPARTURE_LOC","ODI","1","0"},
+			{"SEGMENT_ARRIVAL_LOC","ODI","2","0"},
+			{"CABIN_CODE","SCI","1","0"},
+			{"BOOKING_CLASS_CODE","PDI","2","0"},
+			{"CLASS_AVS","CLA","1","0"},
+			{"SUBLCASS_NUMBER_INDICATOR","SBI","1","0"},
+			{"CLASS_SBC_BOOLEAN_EXPRESSION_ID","SBC","1","0"},
+			{"CLASS_SBC_QUANTITY","SBC","2","0"},
+			{"CLASS_SBC_EFFECTIVE_DATE","SBC","3","0"},
+			{"CLASS_SBC_DISCONTINUE_DATE","SBC","4","0"},
+			{"CLASS_SBC_MIN","SBC","6","0"},
+			{"CLASS_SBC_MIN_NEST_TYPE","SBC","6","1"},
+			{"CLASS_SBC_MIN_NEST_REFERENCE","SBC","6","2"},
+			{"CLASS_SBC_MAX","SBC","6","3"},
+			{"CLASS_SBC_MAX_NEST_TYPE","SBC","6","4"},
+			{"CLASS_SBC_MAX_NEST_REFERENCE","SBC","6","5"},
+			{"CLASS_SBC_UPGRADE","SBC","6","6"},
+			{"CLASS_SBC_LOW_NOTIFICATION_LEVEL","SBC","6","7"},
+			{"CLASS_SBC_HIGH_NOTIFICATION_LEVEL","SBC","6","8"},
+			{"CLASS_SBC_PARENT_SUBCLASSID","SBC","6","9"},
+			{"CLASS_SBC_NETTED_PROTECTION","SBC","6","10"},
+			{"CLASS_SBC_WAITLIST_MAX","SBC","6","11"},
+			{"CLASS_SBC_WAITLIST_MAX_PERCENTAGE_OF_AU","SBC","6","12"},
+			{"CLASS_SBC_PROFILE_TYPE","SBC","7","0"},
+			{"CLASS_SBC_PROFILE_NAME","SBC","7","1"},
+			{"CLASS_SBC_NOSHOW_PERCENTAGE","SBC","7","2"},
+			{"CLASS_SBC_OVERBOOKING_PERCENTAGE","SBC","7","3"},
+			{"CLASS_SBC_BOOKINGS_COUNTER","SBC","8","0"},
+			{"CLASS_SBC_GROUP_BOOKINGS_COUNTER","SBC","8","1"},
+			{"CLASS_SBC_GROUP_PENDING_COUNTER","SBC","8","2"},
+			{"CLASS_SBC_GROUP_WAITLIST_COUNTER","SBC","8","3"},
+			{"CLASS_SBC_WAITLIST_COUNTER","SBC","8","4"},
+			{"CLASS_SBC_EXPECTED_TO_BOARD","SBC","8","5"},
+			{"CLASS_SBC_NEGO_ALLOTED_SPACE","SBC","8","6"},
+			{"CLASS_SBC_AVS_STATUS","SBC","9","0"},
+			{"CLASS_SBC_AVAIL_COUNTERS","SBC","10","0"},
+			{"CLASS_SBC_NET_CLASS_AVAILABILITY","SBC","10","1"},
+			{"CLASS_SBC_SEGMENT_AVAILABILITY","SBC","10","2"},
+			{"CLASS_SBC_NET_REVENUE_AVAILABILITY","SBC","10","3"},
+			{"CLASS_SBC_CONTROLLED_AVAILABILITY","SBC","10","4"},
+			{"POST_DATE","UNB","4","0"}
+			};
+		output=get_position_based_values(str,positions);
+		//Custom coding starts here
+		HashMap<String, String> key_value = new HashMap<>();
+		String[] segments = str.split("''\\n");
+		for(String i:segments){
+			key_value.put(i.substring(0,3),i);		
+		}
+		HashMap<String, String> temp = new HashMap<>();
+		//FDR
+		if(key_value.containsKey("FDR")) {
+			String[] fdr_temp = key_value.get("FDR").split("\\\\+");
+			output.put("FLT_HASHKEY",sha2(fdr_temp[1]+fdr_temp[2]+fdr_temp[3]));			
+		}
+
+		//DAT
+		if(key_value.containsKey("DAT")) {
+			String[] dat_temp=key_value.get("DAT").substring(4).split("\\\\+");
+			for(String dat_i:dat_temp) {
+				if(dat_i.startsWith("708")) { output.put("SEGMENT_DEPARTURE_DATETIME",dat_i.split(":",2)[1]); }				
+				if(dat_i.startsWith("707")) { output.put("SEGMENT_ARRIVAL_DATETIME",dat_i.split(":",2)[1]); }	
+			}			
+		}
+		//CAR
+		if(key_value.containsKey("CAR")) {
+			String[] car_temp=key_value.get("CAR").split("\\\\+");
+			int car_len=car_temp.length;
+			if(car_len>2) {output.put("PARTNER_CODESHARE_INFO1",car_temp[2]);}
+			if(car_len>3) {output.put("PARTNER_CODESHARE_INFO2",car_temp[3]);}				
+		}
+		//STX	
+		if(key_value.containsKey("STX")) {
+			String[] stx_temp=key_value.get("STX").substring(4).split("\\\\+");
+			String stx_1="";
+			String stx_0="";					
+			for(String stx_i:stx_temp) {
+				if(stx_i.endsWith("0")) {stx_0 +=stx_i.split(":")[0]+",";}
+				if(stx_i.endsWith("1")) {stx_1 +=stx_i.split(":")[0]+",";}	
+			}
+			if(stx_0!="") {stx_0=stx_0.substring(0,stx_0.length()-1);}
+			if(stx_1!="") {stx_1=stx_1.substring(0,stx_1.length()-1);}			
+			output.put("SEGMENT_STATUS_YES",stx_1);
+			output.put("SEGMENT_STATUS_NO",stx_0);			
+		}
+		//SBC CLASS_SBC_FLAG
+		if(key_value.containsKey("SBC")) {
+			String[] sbc_temp=key_value.get("SBC").split("\\\\+");
+			if(sbc_temp.length>5) {output.put("CLASS_SBC_FLAG",sbc_temp[5]);}			
+		}
+		
+		
+		
+		//EQN
+		int PDI_ind=str.indexOf("PDI");
+		int SBI_ind=str.indexOf("SBI");
+		int EQN_ind=str.indexOf("EQN");
+		if((PDI_ind < EQN_ind) & (EQN_ind<SBI_ind) & EQN_ind!=-1) {
+			temp=convert_to_pairs(key_value.get("EQN"));
+			output.put("CLASS_BOARDED_PNR",temp.get("BOA"));
+			output.put("CLASS_COMMERICAL_STANDBY_BOARDED",temp.get("CBO"));
+			output.put("CLASS_COMMERICAL_STANDBY_NOBOARDED",temp.get("CNB"));
+			output.put("CLASS_GOSHOW_PNR",temp.get("GOS"));
+			output.put("CLASS_NOSHOW",temp.get("NOS"));
+			output.put("CLASS_GROUPNOSHOW",temp.get("GNS"));
+			output.put("CLASS_GROUPBOARDED",temp.get("GBO"));
+			output.put("CLASS_OFFLOADED_PNR",temp.get("OFF"));
+			output.put("CLASS_STAFF_STANDBY_BOARD",temp.get("SBO"));
+			output.put("CLASS_STAFF_STANDBY_NO_BOARD",temp.get("SNB"));
+			output.put("CLASS_VOLUNTARY_OFFLOAD",temp.get("VOL"));
+			output.put("CLASS_UPGRADE_IN",temp.get("UGI"));
+			output.put("CLASS_UPGRADE_OUT",temp.get("UGO"));
+			output.put("CLASS_DOWNGRADE_IN",temp.get("DGI"));
+			output.put("CLASS_DOWNGRADE_OUT",temp.get("DGO"));
+			output.put("CLASS_DENIED_BOARDING",temp.get("DNB"));
+			output.put("CLASS_NO_REC",temp.get("NOR"));
+		}
+		//NQE
+		if(key_value.containsKey("NQE")) {
+			temp=convert_to_pairs(key_value.get("NQE"));
+			output.put("CLASS_AUTHORISATION",temp.get("AU"));
+			output.put("CLASS_BOOKING_CANCEL_COUNT",temp.get("BCA"));
+			output.put("CLASS_GROUPBOOKING_CANCELLATIONS",temp.get("GBC"));
+			output.put("CLASS_GROUP_ASSIGNED_NAME",temp.get("GAS"));
+			output.put("CLASS_EXPECTED_TO_BOARD",temp.get("ETB"));
+			output.put("CLASS_NESTED_SEGMENT_LIMIT",temp.get("NSL"));
+			output.put("CLASS_OWN_AVAILABILITY",temp.get("OWN"));
+			output.put("CLASS_NEGO_BOOKING",temp.get("NEG"));
+			output.put("CLASS_SEGMENT_LIMIT_STANDALONE",temp.get("SLS"));
+			output.put("CLASS_CLASS_SBC_LIMIT_THRESHOLD",temp.get("SBT"));
+			output.put("CLASS_CLASS_SBC_LIMIT_PERCENTAGE",temp.get("SBP"));
+			output.put("CLASS_SEGMENTLIMIT",temp.get("SLM"));
+			output.put("CLASS_SEGMENT_LIMIT_CONNECTING",temp.get("SLC"));
+			output.put("CLASS_NETTED_PROTECTION",temp.get("PRO"));
+			output.put("CLASS_TICKETED_PASSANGERS",temp.get("TKP"));
+			output.put("CLASS_TOTAL_OVERBOOKING_PERCENTAGE",temp.get("TOB"));
+	     }
+		//ATC
+		if(key_value.containsKey("ATC")) {
+			String[] temp1=key_value.get("ATC").split("\\\\+");
+			for(String j:temp1) {
+				if(j.startsWith("SLC")) { output.put("CLASS_MOVEABLE_CURTAIN_SLC",j.split(":")[1]);}								
+				if(j.startsWith("SLS")) { output.put("CLASS_MOVEABLE_CURTAIN_SLS",j.split(":")[1]); }		
+			}	
+		}
+		//TAD
+		if(key_value.containsKey("TAD")) {
+			String[] TAD_temp=key_value.get("TAD").split("\\\\+");
+			output.put("MESSAGE_DATETIME",TAD_temp[1].split(":",2)[1]);
+		}
+
+		//REC_SRCE
+		output.put("REC_SRCE","LND_BIF");
+		for(String key:output.keySet()) {
+			String value=output.get(key);
+			if(value!=null && !value.isEmpty() ) {
+				output_final.put(key,value);
+			}		
+		}
+		
+		//calculating hash_diff
+		String concat="";
+		for(String column_name:hash_diff_ODI) {
+			String column_data= output_final.get(column_name);
+			if(column_data==null) {
+				concat+="^^";
+			}
+			else {
+				concat+=column_data;
+			}			
+		}
+		output_final.put("HASH_DIFF",sha2(concat));
+		return output_final;
+	}
+
+  public static HashMap<String, String> get_position_based_values(String str,String[][] positions){
+        HashMap<String, String[][]> dict = new HashMap<>();
+        HashMap<String, String> output = new HashMap<>();
+    	if(str.startsWith("ERROR")) {
+    	output.put("ERROR",str.substring(5));
+    	}
+    	else {
+    	output.put("ERROR","");	
+        String[] segments = str.split("''\\n");
+        for(String i:segments){
+            String[] temp = i.split("\\\\+");
+            String[][] temp1 = new String[temp.length][] ;
+            for(int j=0;j<temp.length;j++){
+                temp1[j]=temp[j].split(":");
+            }
+            dict.put(temp1[0][0], temp1);
+        }
+    	}
+        int p,q;
+        for(String[] col:positions){
+        	p=Integer.parseInt(col[2]);
+            q=Integer.parseInt(col[3]);
+            
+            if(dict.containsKey(col[1]) ){
+            	String[][] data=dict.get(col[1]);
+            	if(p<data.length && q<data[p].length) {output.put(col[0],data[p][q]);} 
+            }
+        }
+        return output;
+    }
+    public static HashMap<String, String> convert_to_pairs(String str){
+    	HashMap<String, String> output = new HashMap<>();
+    	String[] temp=str.split("\\\\+");
+		for(int j=1;j<temp.length;j++) {
+			String[] temp1=temp[j].split(":");
+			output.put(temp1[1],temp1[0]);
+		}
+		return output;
+    	
+    }
+    public static String sha2(String field) {
+	    if(field == null) return null;
+	   
+	    try {
+	    java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+	    md.reset();
+	    md.update(field.getBytes("UTF-8"));
+	    byte[] digest = md.digest();
+	    java.math.BigInteger bigInt = new java.math.BigInteger(1, digest);
+	    String hashText = bigInt.toString(16);
+	    // Now we need to zero pad it if you actually want the full 32 chars.
+	    while(hashText.length() < 32 ){
+	    hashText = "0" + hashText;
+	    }
+	        return hashText;
+	    }
+	    catch (Exception e) {
+	    return null;
+	    }
+	    }
+
+   }
+';
+/************************************************************************************************/
+
+CREATE OR REPLACE FUNCTION "SKEY"("ID" VARCHAR(16777216))
+RETURNS VARCHAR(16777216)
+LANGUAGE SQL
+AS '
+    substring(''0000'' || id::varchar, -4) || '' ''
+  ';
+/************************************************************************************************/
+
+CREATE OR REPLACE FUNCTION "GET_COUNTRIES_FOR_USER"("ID" NUMBER(38,0))
+RETURNS TABLE ("COUNTRY_CODE" VARCHAR(1), "COUNTRY_NAME" VARCHAR(16777216))
+LANGUAGE SQL
+AS 'select distinct c.country_code, c.country_name
+      from user_addresses a, countries c
+      where a.user_id = id
+      and c.country_code = a.country_code';
+/************************************************************************************************/
+
+CREATE OR REPLACE FUNCTION "SP_JSON_MASKING"("V" VARIANT)
+RETURNS VARIANT
+LANGUAGE JAVASCRIPT
+AS '
+if (V["displayedFormsOfPayment"][0]["paymentLoyalty"]["membership"]["id"])
+{V["displayedFormsOfPayment"][1]["paymentLoyalty"]["membership"]["id"] = "**masked**";}
+else if (V["displayedFormsOfPayment"][1]["paymentLoyalty"]["membership"]["id"] === undefined)
+{V["displayedFormsOfPayment"][1]["paymentLoyalty"]["membership"]["id"] = "**masked**";}
+return V;
+';
+/************************************************************************************************/
+
+CREATE OR REPLACE FUNCTION "UDF_JSON_MASK"("PARAM" ARRAY, "JSON" VARCHAR(16777216))
+RETURNS VARCHAR(16777216)
+LANGUAGE JAVASCRIPT
+AS ' var newstring = JSON;
+var regpattern = ''":"([^"]*)"'';
+finalstring = '''';
+
+var replacevalue = ''***********'';
+var arrayLength = PARAM.length;
+for (var i = 0; i < arrayLength; i++) {
+patternnow = ''"''+PARAM[i] + regpattern;
+newRegExp = new RegExp(patternnow,"g");
+
+searchstring = ''"'' + PARAM[i] + ''":'';
+s = newstring.indexOf(searchstring) + searchstring.length+1;
+e = newstring.indexOf(''"'',s);
+t = newstring.substr(s,e-s);
+
+var hash = 0;
+for (ii = 0; ii < t.length; ii++) {
+char = t.charCodeAt(ii);
+hash = ((hash << 5) - hash) + char;
+hash = hash & hash;
+}
+
+
+replacevalue = ''"''+PARAM[i]+''":"''+hash+''"'';
+
+
+//replacevalue = ''"''+PARAM[i]+''":"**********"'';
+
+rplstring = newstring.replace(newRegExp,replacevalue);
+newstring = rplstring;
+finalstring = newstring;
+
+}
+return finalstring;
+';
+/************************************************************************************************/
+
+CREATE OR REPLACE FUNCTION "UDF_JSON_MASK_PNR"("PARAM" ARRAY, "JSON" VARCHAR(16777216))
+RETURNS VARCHAR(16777216)
+LANGUAGE JAVASCRIPT
+AS ' var newstring  = JSON;
+  var regpattern = ''":"([^"]*)"'';
+  finalstring = '''';
+  
+  var replacevalue = ''***********'';
+  var arrayLength = PARAM.length;
+  for (var i = 0; i < arrayLength; i++) {
+    patternnow   = ''"''+PARAM[i] + regpattern;  
+    newRegExp    = new RegExp(patternnow,"g");
+    
+    searchstring = ''"'' + PARAM[i] + ''":'';
+    s            = newstring.indexOf(searchstring) + searchstring.length+1;
+    e            = newstring.indexOf(''"'',s);
+    t            = newstring.substr(s,e-s);
+    
+    var hash = 0;
+    for (ii = 0; ii < t.length; ii++) {
+       char = t.charCodeAt(ii);
+       hash = ((hash << 5) - hash) + char;
+       hash = hash & hash;
+       }
+       
+       
+    // replacevalue = ''"''+PARAM[i]+''":"''+hash+''"'';            
+    
+   
+    replacevalue = ''"''+PARAM[i]+''":"**********"'';
+    
+    rplstring   = newstring.replace(newRegExp,replacevalue);
+    newstring   = rplstring;
+    finalstring = newstring;
+    
+  }
+  return finalstring;
+';
+/************************************************************************************************/
+
+CREATE OR REPLACE FUNCTION "VYUADD"("X" NUMBER(38,0), "Y" NUMBER(38,0))
+RETURNS NUMBER(38,0)
+LANGUAGE JAVA
+HANDLER = 'TestAddFunc.add'
+AS '
+    class TestAddFunc {
+        public static int add(int x, int y) {
+          return x + y;
+        }
+    }
+';
+/************************************************************************************************/
+
+CREATE OR REPLACE FUNCTION "DATA_MASKER"("STR" VARCHAR(16777216))
+RETURNS VARCHAR(16777216)
+LANGUAGE JAVASCRIPT
+AS '
+  return ((STR+"").replaceAll(''A'',''V'').replaceAll(''E'',''W'').replaceAll(''I'',''X'').replaceAll(''O'',''Y'').replaceAll(''U'',''Z'').replaceAll(''U'',''Z'').replaceAll(''9'',''8'').replaceAll(''8'',''7''));
+  ';
+/************************************************************************************************/
+
+CREATE OR REPLACE FUNCTION "GETINDIVIDUALID_TABLE"("P_MEMBERNUMBER" VARCHAR(30))
+RETURNS TABLE ("INDIVID" NUMBER(38,0))
+LANGUAGE SQL
+AS 'select indiv_id
+      from DBA.XREFTEST
+      where MEMBERNUMBER=P_MEMBERNUMBER';
+/************************************************************************************************/
+
+CREATE OR REPLACE FUNCTION "GETDATA"("TEXT" VARCHAR(16777216), "KEY" VARCHAR(16777216))
+RETURNS VARCHAR(16777216)
+LANGUAGE JAVASCRIPT
+AS '
+    var textsArray=TEXT.split("/")
+    
+    for(var i=0;i<textsArray.length;i++){
+        partArray=textsArray[i].split("-")
+        if(partArray[0]==KEY){
+            return partArray[1]
+        }
+    }
+    return null
+';
+/************************************************************************************************/
+
+CREATE OR REPLACE FUNCTION "TRANSFORM_DATA"("NME_FIRST_NME" VARCHAR(16777216), "NME_LAST_NME" VARCHAR(16777216))
+RETURNS TABLE ("NME_FIRST_NME" VARCHAR(16777216), "NME_LAST_NME" VARCHAR(16777216))
+LANGUAGE JAVASCRIPT
+AS '
+   {
+    processRow: function f(row, rowWriter, context){
+       var NME_FIRST_NME = (row.NME_FIRST_NME+"").split("").reverse().join("");
+       var NME_LAST_NME  = (row.NME_LAST_NME+"").split("").reverse().join("");
+       rowWriter.writeRow({NME_FIRST_NME: NME_FIRST_NME,NME_LAST_NME:NME_LAST_NME});
+       }
+    }
+    
+    ';
+/************************************************************************************************/
+
+CREATE OR REPLACE FUNCTION "ARRAY_SORT"("PARAM" ARRAY, "JSON" VARCHAR(16777216))
+RETURNS VARCHAR(16777216)
+LANGUAGE JAVASCRIPT
+AS '   
+  var newstring  = JSON;
+  var regpattern = ''":"([^"]*)"'';
+  finalstring = '''';
+  
+  var replacevalue = ''***********'';
+  var arrayLength = PARAM.length;
+  for (var i = 0; i < arrayLength; i++) {
+    searchstring = ''"'' + PARAM[i] + ''":'';
+    s            = newstring.indexOf(searchstring) + searchstring.length+1;
+    e            = newstring.indexOf(''"'',s);
+    t            = newstring.substr(s,e-s);
+    
+     var hash = 0;
+     for (ii = 0; ii < t.length; ii++) {
+        char = t.charCodeAt(ii);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+        }
+                
+    
+    
+  
+    patternnow   = ''"''+PARAM[i] + regpattern;  
+    newRegExp    = new RegExp(patternnow,"g");
+    // replacevalue = "8888888888-"+hash;
+    
+    //replacevalue = ''"''+PARAM[i]+''":"''+hash+''"'';
+    replacevalue = ''"''+PARAM[i]+''":"*****"'';
+    
+    rplstring   = newstring.replace(newRegExp,replacevalue);
+    newstring   = rplstring;
+    finalstring = newstring;
+    
+  }
+  return finalstring;
+    
+';
+/************************************************************************************************/
+
+CREATE OR REPLACE FUNCTION "HASH"("PARAM" ARRAY)
+RETURNS VARCHAR(16777216)
+LANGUAGE SQL
+AS '
+  sha2(cast(param as string),256)
+';
+/************************************************************************************************/
+
+CREATE OR REPLACE FUNCTION "PREDICT_PCE_UDF"("ARG1" NUMBER(38,0))
+RETURNS FLOAT
+LANGUAGE PYTHON
+RUNTIME_VERSION = '3.8'
+PACKAGES = ('pandas','scikit-learn','cloudpickle==2.0.0')
+HANDLER = 'compute'
+AS '
+import pickle
+
+func = pickle.loads(bytes.fromhex(''800595e4030000000000008c17636c6f75647069636b6c652e636c6f75647069636b6c65948c0d5f6275696c74696e5f747970659493948c0a4c616d6264615479706594859452942868028c08436f6465547970659485945294284b014b004b004b014b034b43431e7400a0017c0067016701a10164011900a0026402a101a0037404a1015300944e4b004b028794288c056d6f64656c948c0770726564696374948c05726f756e64948c06617374797065948c05666c6f61749474948c0b70726564696374596561729485948c41433a5c55736572735c41433233353332385c417070446174615c4c6f63616c5c54656d705c6970796b65726e656c5f333937325c313233323731323632392e7079948c0b707265646963745f706365944b0143020001942929749452947d94288c0b5f5f7061636b6167655f5f944e8c085f5f6e616d655f5f948c085f5f6d61696e5f5f94754e4e4e749452948c1c636c6f75647069636b6c652e636c6f75647069636b6c655f66617374948c125f66756e6374696f6e5f7365747374617465949394681d7d947d9428681a68148c0c5f5f7175616c6e616d655f5f9468148c0f5f5f616e6e6f746174696f6e735f5f947d948c0e5f5f6b7764656661756c74735f5f944e8c0c5f5f64656661756c74735f5f944e8c0a5f5f6d6f64756c655f5f94681b8c075f5f646f635f5f944e8c0b5f5f636c6f737572655f5f944e8c175f636c6f75647069636b6c655f7375626d6f64756c6573945d948c0b5f5f676c6f62616c735f5f947d94680b8c1a736b6c6561726e2e6c696e6561725f6d6f64656c2e5f62617365948c104c696e65617252656772657373696f6e9493942981947d94288c0d6669745f696e7465726365707494888c096e6f726d616c697a65948c0a64657072656361746564948c06636f70795f5894888c066e5f6a6f6273944e8c08706f73697469766594898c0e6e5f66656174757265735f696e5f944b018c05636f65665f948c126e756d70792e636f72652e6e756d65726963948c0b5f66726f6d6275666665729493942896080000000000000040d06f416d33fd3f948c056e756d7079948c0564747970659493948c02663894898887945294284b038c013c944e4e4e4affffffff4affffffff4b007494624b0185948c014394749452948c0572616e6b5f944b018c0973696e67756c61725f94683e28960800000000000000f97afc86aa8259409468454b0185946849749452948c0a696e746572636570745f948c156e756d70792e636f72652e6d756c74696172726179948c067363616c6172949394684543089e86b20f86e8abc094869452948c105f736b6c6561726e5f76657273696f6e948c05312e312e33947562737586948652302e''))
+
+
+from threading import RLock
+
+lock = RLock()
+
+class InvokedFlag:
+    def __init__(self):
+        self.invoked = False
+
+def lock_function_once(f, flag):
+    def wrapper(*args, **kwargs):
+        if not flag.invoked:
+            with lock:
+                if not flag.invoked:
+                    result = f(*args, **kwargs)
+                    flag.invoked = True
+                    return result
+                return f(*args, **kwargs)
+        return f(*args, **kwargs)
+    return wrapper
+
+
+invoked = InvokedFlag()
+
+def compute(arg1):
+    return lock_function_once(func, invoked)(arg1)
+';
+/************************************************************************************************/
+
+CREATE OR REPLACE FUNCTION "UDFT_TEST"()
+RETURNS TABLE ("CORR_SKD_PNR" VARIANT, "SKD_ID" VARCHAR(16777216), "F_PSGRID_VALUE" VARCHAR(16777216))
+LANGUAGE SQL
+AS '
+
+with jsonformat as (
+select parse_json(REPLACE(REPLACE(REPLACE(CORR_SKD_PNR,''"{'',''{''),''}"'',''}''),''\\\\'','''')) CORR_SKD_PNR, SKD_ID
+from  EDW_SIT.ETL_TMP.LND_SKD_CORR)
+
+SELECT CORR_SKD_PNR  ,SKD_ID,f_psgrid.value::STRING as  f_psgrid_value
+       FROM jsonformat t , 
+            lateral flatten(input => CORR_SKD_PNR:correlationScheduleDcsPassenger:dcsPassengerIds) f_psgrid,
+            lateral flatten(input => CORR_SKD_PNR:correlationScheduleDcsPassenger:correlatedData)  f_psgr_corr,
+            lateral flatten(input => f_psgr_corr.value) f_psgr_corr_det,
+            lateral flatten(input => f_psgr_corr_det.value:correlatedLegs) f_psgr_corr_det_leg,
+            lateral flatten(input => CORR_SKD_PNR:dictionaries:dcsPassengers) f_dict 
+       where f_psgr_corr.key = f_psgrid.value and f_dict.key = f_psgrid.value
+       
+';
+/************************************************************************************************/
+
+CREATE OR REPLACE FUNCTION "VYUADDJS"("A" FLOAT, "B" FLOAT)
+RETURNS FLOAT
+LANGUAGE JAVASCRIPT
+AS 'return A + B;';
+/************************************************************************************************/
+
+CREATE OR REPLACE FUNCTION "MSG_TO_SECTIONS"("BIF_MESSAGE" VARCHAR(16777216))
+RETURNS TABLE ("FDR" VARCHAR(16777216), "FDD" VARCHAR(16777216), "APD" VARCHAR(16777216), "ODI_PDI" VARCHAR(16777216), "ODI_SCI" VARCHAR(16777216))
+LANGUAGE JAVASCRIPT
+AS '
+   {
+    processRow: function f(row, rowWriter, context){           
+               var table_tags = ["FDD","APD","ODI"];
+               var key_values={};
+               for (var i=0;i<table_tags.length;i+=1) {              
+                    if(i==table_tags.length-1){
+                        const start="\\n"+table_tags[i]+"+";
+                        key_values[table_tags[i]]=row.BIF_MESSAGE.substring(row.BIF_MESSAGE.indexOf(start)+1);
+                    }
+                    else{
+                        const start="\\n"+table_tags[i]+"+";
+                        const end="\\n"+table_tags[i+1]+"+";
+                        key_values[table_tags[i]]=row.BIF_MESSAGE.substring(row.BIF_MESSAGE.indexOf(start)+1,row.BIF_MESSAGE.indexOf(end)+1);
+                    }
+            
+               }
+               const header = row.BIF_MESSAGE.split("\\nFDD+")[0]+"\\n";
+               const ODIs=("\\n"+key_values["ODI"]).split("\\nODI");
+    	       const STXs=ODIs[ODIs.length-1].split("\\nSTX");
+    	       const index = key_values["ODI"].indexOf(STXs[2]);
+    	       const actual_ODI = key_values["ODI"].substring(0,index-3);
+    	       key_values["ODI"]=actual_ODI;
+    	       const trailer = "XTS"+STXs[2].replace("''\\nDAT","''\\nTAD");
+               for (var j=0;j<table_tags.length;j+=1) { 
+                    key_values[table_tags[j]]= header+key_values[table_tags[j]]+trailer;
+               }
+               key_values["FDR"]= header+trailer;
+               //APD
+               var EQIs=[];
+               var count = 1;
+               for(var APD of splitter(key_values["APD"], "APD", "XTS")) {
+                    APD=APD.replace("''\\nEQI","''\\nIQE");
+                    for(var EQI of splitter(APD, "EQI", "XTS")) {
+                        EQI=EQI.replace("''\\nEQN","''\\nNQE");
+                        EQI=EQI.trim();
+                        EQI=EQI+"\\n"+"LEGS+"+count.toString();    	            
+                        EQIs.push(EQI);
+                    }
+                    count+=1;
+                }        
+                key_values["APD"]=EQIs.join("<");
+               //ODI_PDI
+               count = 1;
+               var PDIs=[];
+               var SCIs=[]
+               for(const ODI of splitter(key_values["ODI"], "ODI", "XTS")) {
+                  for(var SCI of splitter(ODI, "SCI", "XTS")) {
+                      for(var PDI of splitter(SCI, "PDI", "XTS")) {
+                          const start = PDI.indexOf("\\nSBI+");
+                          const index = PDI.indexOf("\\nEQN+",start);
+                          if(index!=-1) {
+                              PDI=PDI.substring(0,index+1)+"NQE"+PDI.substring(index+4);
+                          }
+                          PDI=PDI.trim();
+                          PDI=PDI+"\\n"+"SEGS+"+count.toString();    	            
+                          PDIs.push(PDI); 				
+                      }
+                      SCI=SCI.trim();
+                      SCI=SCI+"\\n"+"SEGS+"+count.toString();    	            
+                      SCIs.push(SCI); 
+                  } 
+                  count+=1;	
+               }
+               key_values["ODI_PDI"]=PDIs.join("<");
+               key_values["ODI_SCI"]=SCIs.join("<");
+               
+               //splitter function
+               function splitter(MSG,HEADER_TAG,TRAILER_TAG){
+                  var msgs=MSG.split("\\n"+HEADER_TAG);
+                  const header = msgs[0]+"\\n";
+                  const trailer = TRAILER_TAG+msgs[msgs.length-1].split("\\n"+TRAILER_TAG)[1];
+                  msgs[msgs.length-1]=msgs[msgs.length-1].split("\\n"+TRAILER_TAG)[0];
+                  var output="";
+                  for(var i=1;i<msgs.length;i++) {
+                      msgs[i]=header+HEADER_TAG+msgs[i]+"\\n"+trailer;
+                      output+=msgs[i]+"<";
+                  }
+                  output=output.substring(0,output.length-1);
+                  return output.split("<");
+               }
+               rowWriter.writeRow({FDR:key_values["FDR"],FDD:key_values["FDD"],APD:key_values["APD"],ODI_PDI:key_values["ODI_PDI"],ODI_SCI:key_values["ODI_SCI"]});
+       }
+    }
+    
+    ';
+/************************************************************************************************/
+
+CREATE OR REPLACE FUNCTION "TEST_MULTI_FUN"("STR" VARCHAR(16777216))
+RETURNS TABLE ("FIRST_NAME" VARCHAR(16777216), "LAST_NAME" VARCHAR(16777216))
+LANGUAGE JAVASCRIPT
+AS '
+   {
+    processRow: function f(row, rowWriter, context){
+        var k= f2(row.str);
+        
+        function f1(str) {
+        var output = str;
+        return f2(output)+"f1";
+        }
+        function f2(str){
+        var output=str;
+        return str+"f2";
+        }
+
+       rowWriter.writeRow({first_name:k,last_name:k});
+       }
+    }
+    
+    ';
+/************************************************************************************************/
+
+CREATE OR REPLACE FUNCTION "UDF_JSON_MASK"("PARAM" ARRAY, "JSON" VARCHAR(16777216))
+RETURNS VARCHAR(16777216)
+LANGUAGE JAVASCRIPT
+AS ' var newstring  = JSON;
+  var regpattern = ''":"([^"]*)"'';
+  finalstring = '''';
+  
+  var replacevalue = ''***********'';
+  var arrayLength = PARAM.length;
+  for (var i = 0; i < arrayLength; i++) {
+    patternnow   = ''"''+PARAM[i] + regpattern;  
+    newRegExp    = new RegExp(patternnow,"g");
+    
+    searchstring = ''"'' + PARAM[i] + ''":'';
+    s            = newstring.indexOf(searchstring) + searchstring.length+1;
+    e            = newstring.indexOf('','',s);
+    t            = newstring.substr(s,e-s);
+    
+    var hash = 0;
+    for (ii = 0; ii < t.length; ii++) {
+       char = t.charCodeAt(ii);
+       hash = ((hash << 5) - hash) + char;
+       hash = hash & hash;
+       }
+       
+       
+    // replacevalue = ''"''+PARAM[i]+''":"''+hash+''"'';            
+    
+   
+    replacevalue = ''"''+PARAM[i]+''":"**********"'';
+    
+    rplstring   = newstring.replace(newRegExp,replacevalue);
+    newstring   = rplstring;
+    finalstring = newstring;
+    
+  }
+  return finalstring;
+';
+/************************************************************************************************/
+
+CREATE OR REPLACE FUNCTION "LARGE_JSON_PARSER"()
+RETURNS TABLE ("EBANK" VARIANT, "EVENTTIMESTAMP" VARCHAR(16777216), "UTC" VARCHAR(16777216), "SYS_INGEST_TMSP" VARCHAR(16777216), "SOURCECODE" VARCHAR(16777216), "FILE_NAME" VARCHAR(16777216), "FILE_ROW" VARCHAR(16777216))
+LANGUAGE PYTHON
+RUNTIME_VERSION = '3.8'
+PACKAGES = ('pandas','pyarrow')
+HANDLER = 'split'
+IMPORTS = ('@EDW_DEV.LND.SILVERSTRM2_STAGE/compensation/daily/sys_ingest_date=20220105/part-00796-115a958a-badb-4024-9175-32848144c06a.c000.snappy.parquet')
+AS '
+import pyarrow.parquet as pq
+import pandas
+import json
+import os
+import sys
+class split:
+    def process(self):   
+        data=pq.read_table(os.path.join(sys._xoptions["snowflake_import_directory"], ''part-00796-115a958a-badb-4024-9175-32848144c06a.c000.snappy.parquet''))
+        list = json.loads(data.to_pandas().to_json(orient = ''records''))
+        dict =list[0]
+        row_num=0
+        for i in dict[''EBank'']:
+            row_num+=1
+            yield (i,dict[''eventhub_enqued_tmsp''],dict[''eventhub_enqued_tmsp''],dict[''sys_ingest_tmsp''],dict[''sys_source_name''],''part-00796-115a958a-badb-4024-9175-32848144c06a.c000.snappy.parquet'',row_num)
+            
+
+';
+/************************************************************************************************/
+

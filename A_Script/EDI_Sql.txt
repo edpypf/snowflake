@@ -1,0 +1,101 @@
+select * from dbc.tables where tablename like '%BIF%' and databasename='PEDW_STG'
+
+SELECT top 5  row_num, ROW_NUMBER() OVER(ORDER BY row_num RESET WHEN  bulk_data LIKE 'FDR+AC+%') AS idx,
+           row_num - idx AS fltidx,
+           STRTOK(bulk_data, '+',2) AS carrier_code,
+           STRTOK(STRTOK(bulk_data, '+',3),':',1) as flt_num,
+           TO_DATE(STRTOK(bulk_data, '+',4),'ddmmyy') AS flt_dep_date,
+	   STRTOK(bulk_data, '+',4) as date_str,
+	   bulk_data
+    FROM   pedw_STG.t_bif_full
+    WHERE  STRTOK(bulk_data, '+',4) ='020422' --and row_num<101
+    AND    bulk_data LIKE 'FDR+AC+%';
+
+select top 5 row_number() OVER(ORDER BY row_num RESET WHEN  bulk_data like 'UNH+%') as idx, 
+           row_num - idx+1 as fltidx, row_num, 
+           substr(bulk_data,1,3) as bif_code,
+           bulk_data from   pedw_STG.t_bif_full	where bulk_data like 'UNH+%'
+
+select top 5  bulk_data from pedw_STG.t_bif_full where bulk_data like '%TVL%'
+
+SELECT bif_code, bulk_data, rank() over (partition by bif_code order by length(bulk_data) desc) FROM  PEDW_DB.BIF_FULL where post_date=date qualify  rank() over (partition by bif_code order by length(bulk_data) desc) <=3
+
+SELECT bif_code, count(bulk_data) FROM  PEDW_DB.BIF_FULL where post_date=date group by bif_code
+
+select aa.bif_code, max(aa.bulk_data) mbd from
+(SELECT bif_code, length(bulk_data) as lbd, bulk_data FROM  PEDW_DB.BIF_FULL where post_date = date ) as aa join
+(SELECT bif_code, max(length(bulk_data)) as mlbd FROM  PEDW_DB.BIF_FULL where post_date=date  group by bif_code) as bb
+on aa.bif_code=bb.bif_code
+and lbd=mlbd group by 1
+	
+show table  pedw_stg.BIF_4HRS_BSB_STG;
+show table  pedw_stg.BIF_4HRS_BSG_STG;
+show table  pedw_stg.BIF_4HRS_BLB_STG;
+show table  pedw_stg.BIF_4HRS_BLC_STG;
+show table  pedw_stg.BIF_4HRS_BLG_STG;
+show table  pedw_stg.BIF_4HRS_BFG_STG;
+show table  primo.ABK;
+show table  pedw_stg.BIF_NEGO;
+show table PEDW_DB.BIF_FULL
+
+SELECT TOP 1 * FROM   pedw_stg.BIF_4HRS_BSB_STG;
+SELECT TOP 1 * FROM   pedw_stg.BIF_4HRS_BSG_STG;
+SELECT TOP 1 * FROM   pedw_stg.BIF_4HRS_BLB_STG;
+SELECT TOP 1 * FROM   pedw_stg.BIF_4HRS_BLC_STG;
+SELECT TOP 1 * FROM   pedw_stg.BIF_4HRS_BLG_STG;
+SELECT TOP 1 * FROM   pedw_stg.BIF_4HRS_BFG_STG;
+
+SELECT TOP 10 * FROM  PEDW_DB.BIF_FULL;
+SELECT TOP 1 * FROM  pedw_stg.T_BIF_FULL;                    
+SELECT TOP 1 * FROM  pedw_stg.T_BIF_NEG_FULL;   
+
+SELECT TOP 1 * FROM   pedw_stg.BIF_NEGO;
+SELECT TOP 1 * FROM  pedw_stg.T_BIF_LEG   ;                  
+SELECT TOP 1 * FROM  pedw_stg.T_BIF_SEG;                     
+SELECT TOP 1 * FROM  pedw_stg.T_BIF_SEG_ACROSS;              
+
+
+${FRAMEWORK_PATH}/runScripts/cmd_cpFiles.ksh cmd_0728_cpFiles $$FileName_GZ $$Landing_Dir $$FileName_GZ $$Src_Dir $$BuiltIn_RunWithFramework
+${FRAMEWORK_PATH}/runScripts/cmd_gunzipFiles.ksh cmd_0728_gunzipFiles $$FileName_GZ $$Src_Dir $$BuiltIn_RunWithFramework
+
+${FRAMEWORK_PATH}/runScripts/cmd_generateListFiles.ksh cmd_0728_generateListFiles $$FileName $$Src_Dir $$List_File Y $$BuiltIn_RunWithFramework
+${FRAMEWORK_PATH}/runScripts/Corpo_07_COMMERCIAL/cmd_TagSeparatorBIF4Hrs.ksh cmd_0728_TagSeparatorBIF4Hrs $$Src_Dir $$FileName $$Src_Dir $$BuiltIn_RunWithFramework
+${FRAMEWORK_PATH}/runScripts/Corpo_07_COMMERCIAL/cmd_generateListFiles_BIF4Hrs.ksh cmd_0728_generateListFiles_BIF4Hrs $$Src_Dir $$Src_Dir $$BuiltIn_RunWithFramework
+
+CREATE VIEW PSS_TEDW.bif_full
+AS 
+SELECT 
+ f1.row_num
+ ,f2.carrier_code
+ ,f2.flt_num
+ ,f2.flt_dep_date
+ ,f1.bif_code
+ ,f1.bulk_data
+FROM (
+ SELECT ROW_NUMBER() OVER (
+   ORDER BY row_num RESET WHEN bulk_data LIKE 'FDR+AC+%'
+   ) AS idx
+  ,row_num - idx AS fltidx
+  ,row_num
+  ,SUBSTRING (bulk_data FROM 1 FOR 3) AS bif_code
+  ,bulk_data
+ FROM PSS_TEDW_STG.T_bif_full
+ ) f1
+INNER JOIN (
+ SELECT ROW_NUMBER() OVER (
+   ORDER BY row_num RESET WHEN bulk_data LIKE 'FDR+AC+%'
+   ) AS idx
+  ,row_num - idx AS fltidx
+    ,STRTOK(bulk_data, '+', 2) AS carrier_code
+  ,STRTOK(bulk_data, '+', 3) AS flt_num
+  ,TO_DATE(STRTOK(bulk_data, '+', 4), 'ddmmyy') AS flt_dep_date
+ FROM PSS_TEDW_STG.T_bif_full
+ WHERE 1 = 1
+  AND bulk_data LIKE 'FDR+AC+%') f2 ON 1 = 1
+ AND f1.fltidx = f2.fltidx;
+
+
+
+
+
+	

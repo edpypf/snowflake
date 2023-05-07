@@ -1,0 +1,60 @@
+create or replace stage LND.SILVERSTRM2_STAGE
+  storage_integration = STREAM2_DEV
+  url = 'azure://acaze2itdevdatalake2.blob.core.windows.net/air-canadalist @lnd.SILVERSTRM2_STAGE/amadeus/'
+  file_format = LND.PARQUET_FORMAT;
+
+list @lnd.SILVERSTRM2_STAGE/pnr/daily/data/
+select $1 as pnr from @lnd.SILVERSTRM2_STAGE/pnr/daily/data/1_11_0/sys_ingest_date=20220415/part-00004-25a78751-3084-4b66-b092-a0df211abce2.c000.snappy.parquet
+list @lnd.SILVERSTRM2_STAGE/pnr_corr/daily/data/
+select $1 as pnr_corr from @lnd.SILVERSTRM2_STAGE/pnr_corr/daily/data/1_11_0/sys_ingest_date=20220415/part-00000-739328a4-042a-442c-aa0a-39fdbe9d2433.c000.snappy.parquet
+list @lnd.SILVERSTRM2_STAGE/dcsbag/daily/data/
+select $1 as dcsbag from @lnd.SILVERSTRM2_STAGE/dcsbag/daily/data/1_3_0/sys_ingest_date=20220327/part-00000-eff6b62f-510f-43f7-b346-c2c88d583b1a.c000.snappy.parquet
+list @lnd.SILVERSTRM2_STAGE/dcsbag_corr/daily/data/
+select $1 as dcsbag_corr from @lnd.SILVERSTRM2_STAGE/dcsbag_corr/daily/data/1_3_0/sys_ingest_date=20220327/part-00000-aed52681-301e-47f3-b064-f167d4576dbb.c000.snappy.parquet
+list @lnd.SILVERSTRM2_STAGE/dcshist/daily/data/
+select $1 as dcshist from @lnd.SILVERSTRM2_STAGE/dcshist/daily/data/3_0_0/sys_ingest_date=20220415/part-00006-c8b25c89-4dcb-4419-837f-610684511fc2.c000.snappy.parquet
+list @lnd.SILVERSTRM2_STAGE/dcspax/daily/data/
+select $1 as dcspax from @lnd.SILVERSTRM2_STAGE/dcspax/daily/data/1_6_0/sys_ingest_date=20220327/part-00006-1b8e8b5d-43f5-4030-99a6-45e63dae8b2b.c000.snappy.parquet
+list @lnd.SILVERSTRM2_STAGE/dcspax_corr/daily/data/
+select $1 as dcspax_corr from @lnd.SILVERSTRM2_STAGE/dcspax_corr/daily/data/1_6_0/sys_ingest_date=20220327/part-00000-9279e03c-7e3f-48f7-aecc-f3e2e138b35f.c000.snappy.parquet
+list @lnd.SILVERSTRM2_STAGE/inv/daily/data/
+select $1 as inv from @lnd.SILVERSTRM2_STAGE/inv/daily/data/1_1_2/sys_ingest_date=20220329/part-00011-bd313faf-6f7b-4b2a-89f6-b55acc24ee68.c000.snappy.parquet
+list @lnd.SILVERSTRM2_STAGE/inv_corr/daily/data/
+select $1 as inv_corr from @lnd.SILVERSTRM2_STAGE/inv_corr/daily/data/1_1_2/sys_ingest_date=20220329/part-00020-d09cf522-d75a-4760-9939-21c3290ea8db.c000.snappy.parquet
+list @lnd.SILVERSTRM2_STAGE/skd/daily/data/
+select $1 as skd from @lnd.SILVERSTRM2_STAGE/skd/daily/data/1_3_0/sys_ingest_date=20220327/part-00000-a695eadd-ae79-4cfd-9801-8dd8cc43d1c1.c000.snappy.parquet
+list @lnd.SILVERSTRM2_STAGE/skd_corr/daily/data/
+select $1 as skd_corr from @lnd.SILVERSTRM2_STAGE/skd_corr/daily/data/1_3_0/sys_ingest_date=20220326/part-00019-9d26da9e-e795-407f-8373-fb6897446170.c000.snappy.parquet
+list @lnd.SILVERSTRM2_STAGE/tkt/daily/data/
+select $1 as tkt from @lnd.SILVERSTRM2_STAGE/tkt/daily/data/3_0_0/sys_ingest_date=20220415/part-00004-91abe402-419b-43c9-8671-03fabc5fbd15.c000.snappy.parquet
+list @lnd.SILVERSTRM2_STAGE/tkt_corr/daily/data/
+select $1 as tkt_corr from @lnd.SILVERSTRM2_STAGE/tkt_corr/daily/data/3_0_0/sys_ingest_date=20220415/part-00000-fc7cf1cd-5bd0-40e3-b283-9a189e73d59f.c000.snappy.parquet
+
+list @lnd.SILVERSTRM2_STAGE/bifda/daily/
+bifda/daily/20220407/PRD.NGI.BIFDA.INV.D220407.T070749.AMA.ACA.FTP.DATA
+list @lnd.SILVERSTRM2_STAGE/compensation/daily/
+select parse_json($1)  as compensation from @lnd.SILVERSTRM2_STAGE/compensation/daily/sys_ingest_date=20220405/part-00001-19608d17-748c-4165-8513-786cfdf49488.c000.snappy.parquet
+list @lnd.SILVERSTRM2_STAGE/dcscm/daily/
+dcscm/daily/20220415/PRD.CML.AC44.DUB.D220414.DATA.20220415160118
+list @lnd.SILVERSTRM2_STAGE/esf/daily/
+esf/daily/20220407/PRD.ETS.AC.AL.ESF.D220407.T060914
+list @lnd.SILVERSTRM2_STAGE/eupgrademde/daily/
+select $1 as eupgrademde from @lnd.SILVERSTRM2_STAGE/eupgrademde/daily/sys_ingest_date=20220411/part-00001-068b382c-a803-48d4-b4bc-5af6777259c2.c000.snappy.parquet
+list @lnd.SILVERSTRM2_STAGE/flightmgmt/daily/
+select $1 as flightmgmt from @lnd.SILVERSTRM2_STAGE/flightmgmt/daily/sys_ingest_date=20220408/part-00000-8bf0f190-6f9e-4f9d-9700-b3888d453647.c000.snappy.parquet
+list @lnd.SILVERSTRM2_STAGE/gatepass/daily/
+select $1 as gatepass from @lnd.SILVERSTRM2_STAGE/gatepass/daily/sys_ingest_date=20210625/part-00003-658e7682-f754-4b29-8754-4215091875da.c000.snappy.parquet
+list @lnd.SILVERSTRM2_STAGE/iatci/daily/
+select $1 as iatci from @lnd.SILVERSTRM2_STAGE/iatci/daily/sys_ingest_date=20201005/part-00000-62ae4d5d-59c0-431e-8618-d0245e88d6bd.c000.snappy.parquet
+list @lnd.SILVERSTRM2_STAGE/ssbrres/daily/
+select $1 as sbr from @lnd.SILVERSTRM2_STAGE/ssbrres/daily/sys_ingest_date=20220330/part-00000-17dc4dfa-7998-4a87-b63d-9eb18792fbbe.c000.snappy.parquet
+list @lnd.SILVERSTRM2_STAGE/ticketingHot/daily/
+ticketingHot/daily/20220407/PRD.TSR.AC.AL.TA.HOT.D220407.T051706
+list @lnd.SILVERSTRM2_STAGE/ticketingLift/daily/
+ticketingLift/daily/20220407/PRD.ETS.AC.AL.LFT.D220407.T231003
+list @lnd.SILVERSTRM2_STAGE/ticketingPurge/daily/
+ticketingPurge/daily/20220407/PRD.ETS.AC.AL.PRG.D220407.T231200
+list @lnd.SILVERSTRM2_STAGE/FSIS/aircraftUsage/daily/
+list @lnd.SILVERSTRM2_STAGE/FSIS/aircraftUsage/daily/
+list @lnd.SILVERSTRM2_STAGE/teradata/reference/
+

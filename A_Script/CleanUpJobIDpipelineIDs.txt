@@ -1,0 +1,36 @@
+DECLARE @JobId INT = 159940,
+
+    @PipelineId INT  = 159943,
+
+    @ParameterGroupID INT = 159943
+
+ 
+
+DELETE FROM [Flow].[ParameterProperty]
+
+                   WHERE ParameterGroupID = @ParameterGroupID
+
+DELETE FROM [Flow].[ParameterGroup]
+
+                   WHERE ParameterGroupID = @ParameterGroupID
+
+DELETE FROM [Flow].[Pipeline]
+
+                   WHERE JobID = @JobId
+
+                   AND PipelineID = @PipelineId
+
+DELETE FROM [Flow].[ExecutionPipeline]
+
+                   WHERE JobID = @JobId
+
+                   AND PipelineID = @PipelineId
+
+DELETE FROM [Flow].[Delta]
+
+                   WHERE DeltaID = @PipelineId
+
+
+-- checking created pipeline id
+select * from flow.pipeline where pipelineid between 159940 and 159949
+exec JMCmd.spShowJob 159940
